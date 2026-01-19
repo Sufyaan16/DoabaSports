@@ -1,13 +1,13 @@
 import { UserButton } from "@stackframe/stack";
+import { Search } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   NavigationMenu,
   NavigationMenuItem,
   NavigationMenuList,
 } from "@/components/ui/navigation-menu";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
 import { stackServerApp } from "@/stack/server";
 
 export default async function NavBar() {

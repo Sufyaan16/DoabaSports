@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { defineConfig } from "drizzle-kit";
 import assert from "node:assert";
+import { defineConfig } from "drizzle-kit";
 
 assert(process.env.DATABASE_URL, "You need database url");
 

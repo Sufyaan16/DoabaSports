@@ -1,10 +1,15 @@
-import type { Metadata } from "next";
 import { StackProvider, StackTheme } from "@stackframe/stack";
-import { stackClientApp } from "../stack/client";
+import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { stackClientApp } from "../stack/client";
 import "./globals.css";
+import {
+  CONTACT_LINKS,
+  EcommerceFooter1,
+  FOOTER_LINKS,
+  NEWSLETTER_DATA,
+} from "@/components/ecommerce-footer1";
 import NavBar from "@/components/nav/nav-bar";
-import { EcommerceFooter1 , NEWSLETTER_DATA, FOOTER_LINKS, CONTACT_LINKS } from "@/components/ecommerce-footer1";
 
 // import {
 //   Sidebar,
@@ -43,14 +48,12 @@ export default function RootLayout({
         <StackProvider app={stackClientApp}>
           <StackTheme>
             <NavBar />
-            {/* <SidebarProvider>
-              <AppSidebar  />
-              <main className="flex-1 w-full">
-              <SidebarTrigger />
-              </main>
-              </SidebarProvider> */}
             {children}
-            <EcommerceFooter1 newsletter={NEWSLETTER_DATA} footerLinks={FOOTER_LINKS} contactLinks={CONTACT_LINKS} />
+            <EcommerceFooter1
+              newsletter={NEWSLETTER_DATA}
+              footerLinks={FOOTER_LINKS}
+              contactLinks={CONTACT_LINKS}
+            />
           </StackTheme>
         </StackProvider>
       </body>

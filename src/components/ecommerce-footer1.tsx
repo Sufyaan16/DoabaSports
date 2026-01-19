@@ -1,26 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronUp, Clock, LucideIcon, MapPin, Phone } from "lucide-react";
+import { Clock, type LucideIcon, MapPin, Phone } from "lucide-react";
 import { Fragment } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { siFacebook, siInstagram, SimpleIcon, siX } from "simple-icons";
+import { type SimpleIcon, siFacebook, siInstagram, siX } from "simple-icons";
 import z from "zod";
-
-import { cn } from "@/lib/utils";
-
 import { Button } from "@/components/ui/button";
 import { Field, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 type NewsletterData = {
   title?: string;
@@ -173,11 +163,10 @@ const EcommerceFooter1 = ({
   className,
 }: EcommerceFooter1Props) => {
   return (
-    
     <section className={cn("pt-8 pb-8 xl:pt-12 mx-4 md:mx-8", className)}>
-        <div className="flex items-center justify-between mb-4">
-          <Separator className="flex-1" />
-        </div>
+      <div className="flex items-center justify-between mb-4">
+        <Separator className="flex-1" />
+      </div>
       <div className="container space-y-3">
         <div className="grid grid-cols-1 gap-x-16 gap-y-8 md:grid-cols-2 xl:grid-cols-4">
           <div>
@@ -197,7 +186,7 @@ const EcommerceFooter1 = ({
           </p>
           <Separator
             orientation="vertical"
-            className="!h-4.5 bg-foreground/60 max-sm:hidden"
+            className="h-4.5! bg-foreground/60 max-sm:hidden"
           />
           <p className="max-md:text-xs">Powered by Doaba Sports</p>
         </div>

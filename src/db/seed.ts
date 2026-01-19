@@ -25,7 +25,7 @@ async function main() {
 
     if (users.length === 0) {
       console.error(
-        "❌ No users found in the database. Seed cannot assign authorId without existing users."
+        "❌ No users found in the database. Seed cannot assign authorId without existing users.",
       );
       process.exit(1);
     }
@@ -75,7 +75,7 @@ async function main() {
     // the sequence behind the table's max value.
     try {
       await sql.query(
-        `SELECT setval(pg_get_serial_sequence('articles','id'), COALESCE((SELECT MAX(id) FROM articles), 1), true);`
+        `SELECT setval(pg_get_serial_sequence('articles','id'), COALESCE((SELECT MAX(id) FROM articles), 1), true);`,
       );
       console.log("✅ Sequence synced after seeding");
     } catch (err) {
