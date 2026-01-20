@@ -10,15 +10,7 @@ import {
   NEWSLETTER_DATA,
 } from "@/components/ecommerce-footer1";
 import NavBar from "@/components/nav/nav-bar";
-
-// import {
-//   Sidebar,
-//   SidebarProvider,
-//   SidebarTrigger,
-//   SidebarContent,
-//   SidebarFooter,
-// } from "@/components/ui/sidebar";
-// import { AppSidebar } from "@/components/app-sidebar";
+import { FeaturesSection } from "@/components/features-section";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,6 +41,7 @@ export default function RootLayout({
           <StackTheme>
             <NavBar />
             {children}
+            <FeaturesSection />
             <EcommerceFooter1
               newsletter={NEWSLETTER_DATA}
               footerLinks={FOOTER_LINKS}
