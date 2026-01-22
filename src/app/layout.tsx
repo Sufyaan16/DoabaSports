@@ -40,17 +40,29 @@ export default function RootLayout({
       >
         <StackProvider app={stackClientApp}>
           <StackTheme>
-            <NavBar />
-            {children}
-            <FeaturesSection />
-            <EcommerceFooter1
-              newsletter={NEWSLETTER_DATA}
-              footerLinks={FOOTER_LINKS}
-              contactLinks={CONTACT_LINKS}
-            />
+            <ConditionalLayout>{children}</ConditionalLayout>
           </StackTheme>
         </StackProvider>
       </body>
     </html>
+  );
+}
+
+function ConditionalLayout({ children }: { children: React.ReactNode }) {
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
+    return children;
+  }
+
+  return (
+    <>
+      <NavBar />
+      {children}
+      <FeaturesSection />
+      <EcommerceFooter1
+        newsletter={NEWSLETTER_DATA}
+        footerLinks={FOOTER_LINKS}
+        contactLinks={CONTACT_LINKS}
+      />
+    </>
   );
 }
