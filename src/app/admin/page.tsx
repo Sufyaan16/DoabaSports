@@ -33,12 +33,12 @@ export default async function AdminDashboard() {
             <div className="px-4 lg:px-6">
               <ChartAreaInteractive />
             </div>
-            <DataTable data={data} />
+            {/* <DataTable data={data} /> */}
           </div>
         </div>
 
         {/* Admin Quick Actions */}
-        <div className="grid gap-4 md:grid-cols-2">
+        {/* <div className="grid gap-4 md:grid-cols-2">
           <Link href="/admin/categories">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer">
               <CardHeader>
@@ -64,7 +64,7 @@ export default async function AdminDashboard() {
               </CardHeader>
             </Card>
           </Link>
-        </div>
+        </div> */}
       </div>
 
       {/* Recent Activity */}
