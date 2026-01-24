@@ -128,7 +128,7 @@ export function ProductsList({ products }: ProductsListProps) {
       {/* Products List */}
       <Card>
         <CardHeader>
-          <CardTitle className="mt-6 text-xl">All Products ({filteredAndSortedProducts.length})</CardTitle>
+          <CardTitle className="text-xl">All Products ({filteredAndSortedProducts.length})</CardTitle>
           <CardDescription>
             {searchQuery && `Showing results for "${searchQuery}"`}
           </CardDescription>

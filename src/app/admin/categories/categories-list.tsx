@@ -121,7 +121,7 @@ export function CategoriesList({ categories }: CategoriesListProps) {
       {/* Categories List */}
       <Card>
         <CardHeader>
-          <CardTitle className="mt-6 text-xl">All Categories ({filteredAndSortedCategories.length})</CardTitle>
+          <CardTitle className="text-xl">All Categories ({filteredAndSortedCategories.length})</CardTitle>
           <CardDescription>
             {searchQuery && `Showing results for "${searchQuery}"`}
           </CardDescription>

@@ -6,6 +6,7 @@ import { stackClientApp } from "../stack/client";
 import "./globals.css";
 import { ConditionalLayout } from "@/components/conditional-layout";
 import NavBar from "@/components/nav/nav-bar";
+import { CartProvider } from "@/contexts/cart-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,9 +35,11 @@ export default function RootLayout({
       >
         <StackProvider app={stackClientApp}>
           <StackTheme>
-            <ConditionalLayout navbar={<NavBar />}>
-              {children}
-            </ConditionalLayout>
+            <CartProvider>
+              <ConditionalLayout navbar={<NavBar />}>
+                {children}
+              </ConditionalLayout>
+            </CartProvider>
           </StackTheme>
         </StackProvider>
       </body>

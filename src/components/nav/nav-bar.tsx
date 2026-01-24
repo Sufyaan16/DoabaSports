@@ -9,6 +9,7 @@ import {
   NavigationMenuList,
 } from "@/components/ui/navigation-menu";
 import { stackServerApp } from "@/stack/server";
+import { CartIcon } from "@/components/cart-icon";
 
 export default async function NavBar() {
   const user = await stackServerApp.getUser();
@@ -55,6 +56,9 @@ export default async function NavBar() {
             className="w-full pl-10 pr-4 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
           />
         </div>
+
+        {/* Cart Icon */}
+        <CartIcon />
 
         <NavigationMenu>
           <NavigationMenuList className="flex items-center gap-2">

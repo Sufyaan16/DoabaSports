@@ -1,16 +1,7 @@
 import { notFound } from "next/navigation";
-import { Price, PriceValue } from "@/components/price";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { CRICKET_BATS } from "@/lib/data/products";
 import { getCategoryBySlug } from "@/lib/data/categories";
+import { ProductsGrid } from "@/components/products-grid";
 
 interface CategoryPageProps {
   params: Promise<{
@@ -74,67 +65,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {categoryProducts.map((product) => (
-              <a
-                key={product.id}
-                href={`/products/${product.id}`}
-                className="block transition-opacity hover:opacity-80"
-              >
-                <Card className="h-full overflow-hidden p-0">
-                  <CardHeader className="relative block p-0">
-                    <AspectRatio ratio={1.268115942} className="overflow-hidden">
-                      <img
-                        src={product.image.src}
-                        alt={product.image.alt}
-                        className="block size-full object-cover object-center"
-                      />
-                    </AspectRatio>
-                    {product.badge && (
-                      <Badge
-                        style={{
-                          background: product.badge.backgroundColor,
-                        }}
-                        className="absolute start-4 top-4"
-                      >
-                        {product.badge.text}
-                      </Badge>
-                    )}
-                  </CardHeader>
-                  <CardContent className="flex h-full flex-col gap-3 pb-6">
-                    <div>
-                      <p className="text-sm text-muted-foreground font-medium">
-                        {product.company}
-                      </p>
-                      <CardTitle className="text-xl font-semibold">
-                        {product.name}
-                      </CardTitle>
-                    </div>
-                    <CardDescription className="font-medium text-muted-foreground line-clamp-2">
-                      {product.description}
-                    </CardDescription>
-                    <div className="mt-auto">
-                      <Price
-                        onSale={product.price.sale != null}
-                        className="text-lg font-semibold"
-                      >
-                        <PriceValue
-                          price={product.price.regular}
-                          currency={product.price.currency}
-                          variant="regular"
-                        />
-                        <PriceValue
-                          price={product.price.sale}
-                          currency={product.price.currency}
-                          variant="sale"
-                        />
-                      </Price>
-                    </div>
-                  </CardContent>
-                </Card>
-              </a>
-            ))}
-          </div>
+          <ProductsGrid products={categoryProducts} />
         )}
       </section>
     </div>
