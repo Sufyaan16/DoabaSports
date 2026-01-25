@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +27,9 @@ interface ProductsListProps {
   products: Product[];
 }
 
-export function ProductsList({ products }: ProductsListProps) {
+export function ProductsList({ products: initialProducts }: ProductsListProps) {
+  const router = useRouter();
+  const [products, setProducts] = useState(initialProducts);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "price-asc" | "price-desc" | "name">("date");
   const [currentPage, setCurrentPage] = useState(1);
@@ -83,14 +86,35 @@ export function ProductsList({ products }: ProductsListProps) {
     });
 
     if (result.isConfirmed) {
-      // TODO: Implement actual delete functionality
-      Swal.fire({
-        title: "Deleted!",
-        text: `${productName} has been deleted.`,
-        icon: "success",
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      try {
+        const response = await fetch(`/api/products/${productId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to delete product");
+        }
+
+        // Remove from local state
+        setProducts(products.filter((p) => p.id !== productId));
+
+        await Swal.fire({
+          title: "Deleted!",
+          text: `${productName} has been deleted.`,
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+
+        // Refresh the page to get updated data
+        router.refresh();
+      } catch (error) {
+        Swal.fire({
+          title: "Error!",
+          text: "Failed to delete product. Please try again.",
+          icon: "error",
+        });
+      }
     }
   };
 

@@ -31,6 +31,7 @@ export function EditProductForm({ product }: EditProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>(product.image.src);
+  const [imageHoverPreview, setImageHoverPreview] = useState<string>(product.imageHover?.src || "");
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,36 +44,73 @@ export function EditProductForm({ product }: EditProductFormProps) {
     }
   };
 
+  const handleImageHoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageHoverPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    const productData = {
-      id: product.id,
-      name: formData.get("name"),
-      company: formData.get("company"),
-      category: formData.get("category"),
-      description: formData.get("description"),
-      price: formData.get("price"),
-      salePrice: formData.get("salePrice"),
-      image: formData.get("image"),
-    };
+    try {
+      const formData = new FormData(e.currentTarget);
+      
+      // Create product data object
+      const productData = {
+        name: formData.get("name") as string,
+        company: formData.get("company") as string,
+        category: formData.get("category") as string,
+        description: formData.get("description") as string,
+        priceRegular: parseFloat(formData.get("price") as string),
+        priceSale: formData.get("salePrice") ? parseFloat(formData.get("salePrice") as string) : null,
+        priceCurrency: "USD",
+        imageSrc: imagePreview,
+        imageAlt: formData.get("name") as string,
+        imageHoverSrc: imageHoverPreview || null,
+        imageHoverAlt: imageHoverPreview ? `${formData.get("name")} - Alternate View` : null,
+        badgeText: formData.get("badgeText") as string || null,
+        badgeBackgroundColor: formData.get("badgeColor") as string || null,
+      };
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Send to API
+      const response = await fetch(`/api/products/${product.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(productData),
+      });
 
-    setLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to update product");
+      }
 
-    // Show success message
-    await Swal.fire({
-      title: "Updated!",
-      text: `${productData.name} has been updated successfully.`,
-      icon: "success",
-      confirmButtonText: "OK",
-    });
+      setLoading(false);
 
-    router.push("/admin/products");
+      // Show success message
+      await Swal.fire({
+        title: "Updated!",
+        text: `${productData.name} has been updated successfully.`,
+        icon: "success",
+        confirmButtonText: "OK",
+      });
+
+      router.push("/admin/products");
+    } catch (error) {
+      setLoading(false);
+      Swal.fire({
+        title: "Error!",
+        text: "Failed to update product. Please try again.",
+        icon: "error",
+      });
+    }
   };
 
   return (
@@ -179,7 +217,7 @@ export function EditProductForm({ product }: EditProductFormProps) {
 
           {/* Image Upload */}
           <div className="space-y-2">
-            <Label htmlFor="image">Product Image</Label>
+            <Label htmlFor="image">Product Image (Primary)</Label>
             <div className="flex items-start gap-4">
               <div className="flex-1">
                 <div className="relative">
@@ -193,7 +231,7 @@ export function EditProductForm({ product }: EditProductFormProps) {
                   />
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload a new image to replace the current one (JPG, PNG, or WebP)
+                  Upload a new primary image to replace the current one (JPG, PNG, or WebP)
                 </p>
               </div>
               {imagePreview && (
@@ -201,6 +239,37 @@ export function EditProductForm({ product }: EditProductFormProps) {
                   <img
                     src={imagePreview}
                     alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Hover Image Upload */}
+          <div className="space-y-2">
+            <Label htmlFor="imageHover">Product Image (Hover)</Label>
+            <div className="flex items-start gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Input
+                    id="imageHover"
+                    name="imageHover"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageHoverChange}
+                    className="cursor-pointer"
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Upload hover image (optional - shown when customer hovers over product)
+                </p>
+              </div>
+              {imageHoverPreview && (
+                <div className="w-32 h-32 border rounded-lg overflow-hidden">
+                  <img
+                    src={imageHoverPreview}
+                    alt="Hover Preview"
                     className="w-full h-full object-cover"
                   />
                 </div>

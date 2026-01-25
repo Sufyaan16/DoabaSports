@@ -4,7 +4,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { EditProductForm } from "./edit-product-form";
-import { CRICKET_BATS } from "@/lib/data/products";
+import db from "@/db/index";
+import { products } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 interface EditProductPageProps {
   params: Promise<{
@@ -22,12 +24,42 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
   const { id } = await params;
   const productId = parseInt(id);
 
-  // Find the product
-  const product = CRICKET_BATS.find((p) => p.id === productId);
+  // Fetch product from database
+  const dbProduct = await db
+    .select()
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
 
-  if (!product) {
+  if (dbProduct.length === 0) {
     notFound();
   }
+
+  // Transform to frontend format
+  const product = {
+    id: dbProduct[0].id,
+    name: dbProduct[0].name,
+    company: dbProduct[0].company,
+    category: dbProduct[0].category,
+    image: {
+      src: dbProduct[0].imageSrc,
+      alt: dbProduct[0].imageAlt,
+    },
+    imageHover: dbProduct[0].imageHoverSrc ? {
+      src: dbProduct[0].imageHoverSrc,
+      alt: dbProduct[0].imageHoverAlt || `${dbProduct[0].name} - Alternate View`,
+    } : undefined,
+    description: dbProduct[0].description,
+    price: {
+      regular: parseFloat(dbProduct[0].priceRegular),
+      sale: dbProduct[0].priceSale ? parseFloat(dbProduct[0].priceSale) : undefined,
+      currency: dbProduct[0].priceCurrency,
+    },
+    badge: dbProduct[0].badgeText ? {
+      text: dbProduct[0].badgeText,
+      backgroundColor: dbProduct[0].badgeBackgroundColor || undefined,
+    } : undefined,
+  };
 
   return (
     <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">

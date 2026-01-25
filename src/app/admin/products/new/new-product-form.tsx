@@ -25,6 +25,7 @@ export function NewProductForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [imageHoverPreview, setImageHoverPreview] = useState<string>("");
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -37,42 +38,82 @@ export function NewProductForm() {
     }
   };
 
+  const handleImageHoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageHoverPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    const productData = {
-      name: formData.get("name"),
-      company: formData.get("company"),
-      category: formData.get("category"),
-      description: formData.get("description"),
-      price: formData.get("price"),
-      salePrice: formData.get("salePrice"),
-      image: formData.get("image"),
-    };
+    try {
+      const formData = new FormData(e.currentTarget);
+      
+      // Create product data object
+      const productData = {
+        name: formData.get("name") as string,
+        company: formData.get("company") as string,
+        category: formData.get("category") as string,
+        description: formData.get("description") as string,
+        priceRegular: parseFloat(formData.get("price") as string),
+        priceSale: formData.get("salePrice") ? parseFloat(formData.get("salePrice") as string) : null,
+        priceCurrency: "USD",
+        imageSrc: imagePreview, // For now using the preview, in production you'd upload to cloud storage
+        imageAlt: formData.get("name") as string,
+        imageHoverSrc: imageHoverPreview || null,
+        imageHoverAlt: imageHoverPreview ? `${formData.get("name")} - Alternate View` : null,
+        badgeText: formData.get("badgeText") as string || null,
+        badgeBackgroundColor: formData.get("badgeColor") as string || null,
+      };
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Send to API
+      const response = await fetch("/api/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(productData),
+      });
 
-    setLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to create product");
+      }
 
-    // Show success message
-    const result = await Swal.fire({
-      title: "Success!",
-      text: `${productData.name} has been added successfully.`,
-      icon: "success",
-      confirmButtonText: "View Products",
-      showCancelButton: true,
-      cancelButtonText: "Add Another",
-    });
+      const newProduct = await response.json();
+      setLoading(false);
 
-    if (result.isConfirmed) {
-      router.push("/admin/products");
-    } else {
-      // Reset form
-      (e.target as HTMLFormElement).reset();
-      setImagePreview("");
+      // Show success message
+      const result = await Swal.fire({
+        title: "Success!",
+        text: `${productData.name} has been added successfully.`,
+        icon: "success",
+        confirmButtonText: "View Products",
+        showCancelButton: true,
+        cancelButtonText: "Add Another",
+      });
+
+      if (result.isConfirmed) {
+        router.push("/admin/products");
+      } else {
+        // Reset form
+        (e.target as HTMLFormElement).reset();
+        setImageHoverPreview("");
+        setImagePreview("");
+      }
+    } catch (error) {
+      setLoading(false);
+      Swal.fire({
+        title: "Error!",
+        text: "Failed to create product. Please try again.",
+        icon: "error",
+      });
     }
   };
 
@@ -176,7 +217,7 @@ export function NewProductForm() {
           {/* Image Upload */}
           <div className="space-y-2">
             <Label htmlFor="image">
-              Product Image <span className="text-red-500">*</span>
+              Product Image (Primary) <span className="text-red-500">*</span>
             </Label>
             <div className="flex items-start gap-4">
               <div className="flex-1">
@@ -192,7 +233,7 @@ export function NewProductForm() {
                   />
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload a product image (JPG, PNG, or WebP)
+                  Upload primary product image (JPG, PNG, or WebP)
                 </p>
               </div>
               {imagePreview && (
@@ -200,6 +241,39 @@ export function NewProductForm() {
                   <img
                     src={imagePreview}
                     alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Hover Image Upload */}
+          <div className="space-y-2">
+            <Label htmlFor="imageHover">
+              Product Image (Hover)
+            </Label>
+            <div className="flex items-start gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Input
+                    id="imageHover"
+                    name="imageHover"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageHoverChange}
+                    className="cursor-pointer"
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Upload hover image (optional - shown when customer hovers over product)
+                </p>
+              </div>
+              {imageHoverPreview && (
+                <div className="w-32 h-32 border rounded-lg overflow-hidden">
+                  <img
+                    src={imageHoverPreview}
+                    alt="Hover Preview"
                     className="w-full h-full object-cover"
                   />
                 </div>

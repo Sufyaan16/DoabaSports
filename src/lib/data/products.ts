@@ -13,6 +13,10 @@ export interface Product {
     src: string;
     alt: string;
   };
+  imageHover?: {
+    src: string;
+    alt: string;
+  };
   description: string;
   price: ProductPrice;
   badge?: {
@@ -30,6 +34,10 @@ export const CRICKET_BATS: Product[] = [
     image: {
       src: "https://images.unsplash.com/photo-1624526267942-ab0ff8a3e972?w=800&q=80",
       alt: "Ihsan Legend Pro Elite Cricket Bat",
+    },
+    imageHover: {
+      src: "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800&q=80",
+      alt: "Ihsan Legend Pro Elite Cricket Bat - Alternate View",
     },
     description: "Premium English willow bat with exceptional balance and power.",
     price: {

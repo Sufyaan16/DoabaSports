@@ -2,9 +2,11 @@ import { stackServerApp } from "@/stack/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { CRICKET_BATS } from "@/lib/data/products";
 import { ProductsList } from "./products-list";
 import { ProductsBulkActions } from "./bulk-actions";
+import db from "@/db/index";
+import { products } from "@/db/schema";
+import { desc } from "drizzle-orm";
 
 export default async function AdminProductsPage() {
   const user = await stackServerApp.getUser();
@@ -12,6 +14,38 @@ export default async function AdminProductsPage() {
   if (!user) {
     redirect("/handler/sign-in");
   }
+
+  // Fetch products from database
+  const allProducts = await db
+    .select()
+    .from(products)
+    .orderBy(desc(products.createdAt));
+
+  // Transform database products to match frontend format
+  const transformedProducts = allProducts.map((product) => ({
+    id: product.id,
+    name: product.name,
+    company: product.company,
+    category: product.category,
+    image: {
+      src: product.imageSrc,
+      alt: product.imageAlt,
+    },
+    imageHover: product.imageHoverSrc ? {
+      src: product.imageHoverSrc,
+      alt: product.imageHoverAlt || `${product.name} - Alternate View`,
+    } : undefined,
+    description: product.description,
+    price: {
+      regular: parseFloat(product.priceRegular),
+      sale: product.priceSale ? parseFloat(product.priceSale) : undefined,
+      currency: product.priceCurrency,
+    },
+    badge: product.badgeText ? {
+      text: product.badgeText,
+      backgroundColor: product.badgeBackgroundColor || undefined,
+    } : undefined,
+  }));
 
   return (
     <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">
@@ -24,14 +58,14 @@ export default async function AdminProductsPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <ProductsBulkActions products={CRICKET_BATS} />
+          <ProductsBulkActions products={transformedProducts} />
           <Link href="/admin/products/new">
             <Button>Add New Product</Button>
           </Link>
         </div>
       </div>
 
-      <ProductsList products={CRICKET_BATS} />
+      <ProductsList products={transformedProducts} />
     </div>
   );
 }

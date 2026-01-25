@@ -4,6 +4,7 @@ export interface CategoryInfo {
   description: string;
   longDescription: string;
   image: string;
+  imageHover?: string;
 }
 
 export const CATEGORY_INFO: Record<string, CategoryInfo> = {
@@ -13,6 +14,7 @@ export const CATEGORY_INFO: Record<string, CategoryInfo> = {
     description: "Premium quality cricket bats from top brands",
     longDescription: "Explore our extensive collection of cricket bats crafted from premium English and Kashmir willow. From professional-grade bats to recreational options, find the perfect bat that matches your playing style and skill level.",
     image: "https://images.unsplash.com/photo-1624526267942-ab0ff8a3e972?w=1920&q=80",
+    imageHover: "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=1920&q=80",
   },
   cricketgear: {
     slug: "cricketgear",

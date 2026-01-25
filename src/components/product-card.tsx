@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Price, PriceValue } from "@/components/price";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -39,18 +41,24 @@ export function ProductCard({ product }: ProductCardProps) {
     });
   };
 
+  const displayImage = isHovered && product.imageHover 
+    ? product.imageHover 
+    : product.image;
+
   return (
     <a
       href={`/products/${product.id}`}
       className="block transition-opacity hover:opacity-80"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <Card className="h-full overflow-hidden p-0">
         <CardHeader className="relative block p-0">
           <AspectRatio ratio={1.268115942} className="overflow-hidden">
             <img
-              src={product.image.src}
-              alt={product.image.alt}
-              className="block size-full object-cover object-center"
+              src={displayImage.src}
+              alt={displayImage.alt}
+              className="block size-full object-cover object-center transition-opacity duration-300"
             />
           </AspectRatio>
           {product.badge && (

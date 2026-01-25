@@ -27,6 +27,7 @@ export function NewCategoryForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [imageHoverPreview, setImageHoverPreview] = useState<string>("");
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -34,6 +35,17 @@ export function NewCategoryForm() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageHoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageHoverPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -51,6 +63,7 @@ export function NewCategoryForm() {
       description: formData.get("description"),
       longDescription: formData.get("longDescription"),
       image: formData.get("image"),
+      imageHover: formData.get("imageHover"),
     };
 
     // Simulate API call
@@ -74,6 +87,7 @@ export function NewCategoryForm() {
       // Reset form
       (e.target as HTMLFormElement).reset();
       setImagePreview("");
+      setImageHoverPreview("");
     }
   };
 
@@ -182,7 +196,7 @@ export function NewCategoryForm() {
           {/* Image Upload */}
           <div className="space-y-2">
             <Label htmlFor="image">
-              Category Image <span className="text-red-500">*</span>
+              Category Image (Primary) <span className="text-red-500">*</span>
             </Label>
             <div className="flex items-start gap-4">
               <div className="flex-1">
@@ -196,7 +210,7 @@ export function NewCategoryForm() {
                   className="cursor-pointer"
                 />
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload a banner image (recommended: 1920x1080px)
+                  Upload primary banner image (recommended: 1920x1080px)
                 </p>
               </div>
               {imagePreview && (
@@ -204,6 +218,37 @@ export function NewCategoryForm() {
                   <img
                     src={imagePreview}
                     alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Hover Image Upload */}
+          <div className="space-y-2">
+            <Label htmlFor="imageHover">
+              Category Image (Hover)
+            </Label>
+            <div className="flex items-start gap-4">
+              <div className="flex-1">
+                <Input
+                  id="imageHover"
+                  name="imageHover"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageHoverChange}
+                  className="cursor-pointer"
+                />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Upload hover image (optional - shown when customer hovers over category card)
+                </p>
+              </div>
+              {imageHoverPreview && (
+                <div className="w-32 h-32 border rounded-lg overflow-hidden">
+                  <img
+                    src={imageHoverPreview}
+                    alt="Hover Preview"
                     className="w-full h-full object-cover"
                   />
                 </div>

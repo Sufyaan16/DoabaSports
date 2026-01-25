@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { CRICKET_BATS } from "@/lib/data/products";
 import { getCategoryBySlug } from "@/lib/data/categories";
-import { CategoryPageClient } from "./category-page-client";
+import { CategoryPageClient } from "@/app/products/categories/[slug]/category-page-client";
 
 interface CategoryPageProps {
   params: Promise<{
