@@ -5,6 +5,30 @@ import { stackServerApp } from "@/stack/server";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Initialize metadata for authenticated users
+  try {
+    const user = await stackServerApp.getUser();
+    
+    if (user) {
+      // Check if metadata needs initialization
+      if (user.clientReadOnlyMetadata === null) {
+        try {
+          await user.update({
+            clientReadOnlyMetadata: {
+              role: "customer",
+              createdAt: new Date().toISOString(),
+            }
+          });
+          console.log("✅ Initialized metadata for user:", user.primaryEmail);
+        } catch (updateError) {
+          console.error("❌ Error updating user metadata:", updateError);
+        }
+      }
+    }
+  } catch (error) {
+    // Silently continue if not authenticated
+  }
+
   // Check if the route is an admin route
   if (pathname.startsWith("/admin")) {
     try {
@@ -18,11 +42,8 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(signInUrl);
       }
 
-      // Check if user has admin role
-      // Handle both string "admin" or object { role: "admin" }
-      const isAdmin = 
-        user.clientMetadata === "admin" || 
-        user.clientMetadata?.role === "admin";
+      // Check if user has admin role from clientReadOnlyMetadata
+      const isAdmin = user.clientReadOnlyMetadata?.role === "admin";
 
       if (!isAdmin) {
         // User is logged in but not admin - redirect to home with error

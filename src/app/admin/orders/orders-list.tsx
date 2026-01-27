@@ -259,7 +259,7 @@ export function OrdersList({ orders: initialOrders }: OrdersListProps) {
       </div>
 
       {/* Orders Table */}
-      <div className="border rounded-lg">
+      <div className="border rounded-2xl p-3">
         <Table>
           <TableHeader>
             <TableRow>

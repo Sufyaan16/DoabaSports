@@ -17,9 +17,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { useState } from "react";
+import { useUser } from "@stackframe/stack";
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const user = useUser();
   const { cart, updateQuantity, removeFromCart, getCartTotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
   
@@ -32,21 +34,90 @@ export default function CheckoutPage() {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate order placement
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const formData = new FormData(e.currentTarget);
+    const firstName = formData.get("firstName") as string;
+    const lastName = formData.get("lastName") as string;
+    const email = formData.get("email") as string;
+    const phone = formData.get("phone") as string;
+    const address = formData.get("address") as string;
+    const city = formData.get("city") as string;
+    const state = formData.get("state") as string;
+    const zip = formData.get("zip") as string;
 
-    setLoading(false);
+    // Generate order number
+    const orderNumber = `ORD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
 
-    const result = await Swal.fire({
-      title: "Order Placed Successfully!",
-      text: `Your order of $${grandTotal.toFixed(2)} has been placed. Thank you for shopping with us!`,
-      icon: "success",
-      confirmButtonText: "Continue Shopping",
-    });
+    // Prepare order data
+    const orderData = {
+      orderNumber,
+      customerName: `${firstName} ${lastName}`,
+      customerEmail: email,
+      customerPhone: phone,
+      shippingAddress: address,
+      shippingCity: city,
+      shippingState: state,
+      shippingZip: zip,
+      shippingCountry: "USA",
+      items: cart.map((item) => ({
+        productId: item.id,
+        productName: item.name,
+        productImage: item.image.src,
+        quantity: item.quantity,
+        price: item.price.sale || item.price.regular,
+        total: (item.price.sale || item.price.regular) * item.quantity,
+      })),
+      subtotal: cartTotal.toFixed(2),
+      tax: tax.toFixed(2),
+      shippingCost: shippingCost.toFixed(2),
+      total: grandTotal.toFixed(2),
+      currency: "USD",
+      status: "pending",
+      paymentStatus: "unpaid",
+      paymentMethod: "cod",
+    };
 
-    if (result.isConfirmed) {
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create order");
+      }
+
+      const order = await response.json();
+
+      setLoading(false);
+
+      const result = await Swal.fire({
+        title: "Order Placed Successfully!",
+        html: `
+          <p>Your order <strong>${order.orderNumber}</strong> has been placed successfully!</p>
+          <p>Order Total: <strong>$${grandTotal.toFixed(2)}</strong></p>
+          <p>You will receive a confirmation email at <strong>${email}</strong></p>
+        `,
+        icon: "success",
+        confirmButtonText: "View My Orders",
+        showCancelButton: true,
+        cancelButtonText: "Continue Shopping",
+      });
+
       clearCart();
-      router.push("/products");
+
+      if (result.isConfirmed) {
+        router.push("/orders");
+      } else {
+        router.push("/products");
+      }
+    } catch (error) {
+      setLoading(false);
+      await Swal.fire({
+        title: "Error!",
+        text: "Failed to place order. Please try again.",
+        icon: "error",
+      });
     }
   };
 
@@ -160,37 +231,44 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name *</Label>
-                    <Input id="firstName" required placeholder="John" />
+                    <Input id="firstName" name="firstName" required placeholder="John" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name *</Label>
-                    <Input id="lastName" required placeholder="Doe" />
+                    <Input id="lastName" name="lastName" required placeholder="Doe" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email *</Label>
-                  <Input id="email" type="email" required placeholder="john@example.com" />
+                  <Input 
+                    id="email" 
+                    name="email"
+                    type="email" 
+                    required 
+                    placeholder="john@example.com"
+                    defaultValue={user?.primaryEmail || ""}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number *</Label>
-                  <Input id="phone" type="tel" required placeholder="+1 (555) 000-0000" />
+                  <Input id="phone" name="phone" type="tel" required placeholder="+1 (555) 000-0000" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address">Address *</Label>
-                  <Input id="address" required placeholder="123 Main St" />
+                  <Input id="address" name="address" required placeholder="123 Main St" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="city">City *</Label>
-                    <Input id="city" required placeholder="New York" />
+                    <Input id="city" name="city" required placeholder="New York" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="state">State *</Label>
-                    <Input id="state" required placeholder="NY" />
+                    <Input id="state" name="state" required placeholder="NY" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="zip">ZIP Code *</Label>
-                    <Input id="zip" required placeholder="10001" />
+                    <Input id="zip" name="zip" required placeholder="10001" />
                   </div>
                 </div>
               </form>
