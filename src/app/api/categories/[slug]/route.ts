@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/db/index";
 import { categories } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { updateCategorySchema } from "@/lib/validations/category";
+import { ZodError } from "zod";
 
 // GET single category
 export async function GET(
@@ -52,16 +54,34 @@ export async function PUT(
     const { slug } = await params;
     const body = await request.json();
 
+    // Validate request body
+    const validated = updateCategorySchema.safeParse(body);
+    
+    if (!validated.success) {
+      const errors = validated.error.flatten().fieldErrors;
+      return NextResponse.json(
+        { error: "Validation failed", details: errors },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validated.data;
+
+    // Build update object with only provided fields
+    const updateData: any = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (validatedData.slug !== undefined) updateData.slug = validatedData.slug;
+    if (validatedData.name !== undefined) updateData.name = validatedData.name;
+    if (validatedData.description !== undefined) updateData.description = validatedData.description;
+    if (validatedData.longDescription !== undefined) updateData.longDescription = validatedData.longDescription;
+    if (validatedData.image !== undefined) updateData.image = validatedData.image;
+    if (validatedData.imageHover !== undefined) updateData.imageHover = validatedData.imageHover || null;
+
     const updated = await db
       .update(categories)
-      .set({
-        name: body.name,
-        description: body.description,
-        longDescription: body.longDescription,
-        image: body.image,
-        imageHover: body.imageHover || null,
-        updatedAt: new Date().toISOString(),
-      })
+      .set(updateData)
       .where(eq(categories.slug, slug))
       .returning();
 
@@ -74,6 +94,12 @@ export async function PUT(
 
     return NextResponse.json(updated[0]);
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: "Validation failed", details: error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
     console.error("Error updating category:", error);
     return NextResponse.json(
       { error: "Failed to update category" },

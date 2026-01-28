@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, Suspense } from "react";
 import { Product } from "@/lib/data/products";
 import { useUser } from "@stackframe/stack";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface CartItem extends Product {
   quantity: number;
@@ -231,9 +232,33 @@ function CartProviderInner({ children }: { children: React.ReactNode }) {
   );
 }
 
+function CartLoadingSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-7xl mx-auto">
+        <Skeleton className="h-8 w-48 mb-6" />
+        <div className="grid gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white p-4 rounded-lg shadow">
+              <div className="flex gap-4">
+                <Skeleton className="h-24 w-24 rounded" />
+                <div className="flex-1 space-y-3">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-5 w-24" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div>Loading cart...</div>}>
+    <Suspense fallback={<CartLoadingSkeleton />}>
       <CartProviderInner>{children}</CartProviderInner>
     </Suspense>
   );

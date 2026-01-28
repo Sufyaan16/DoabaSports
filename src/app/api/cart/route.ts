@@ -3,7 +3,13 @@ import  db  from "@/db";
 import { carts } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { stackServerApp } from "@/stack/server";
-
+import { z } from "zod";
+import {
+  updateCartSchema,
+  updateCartItemSchema,
+  MAX_CART_ITEMS,
+  MAX_ITEM_QUANTITY,
+} from "@/lib/validations/cart";
 // GET /api/cart - Get user's cart
 export async function GET() {
   try {
@@ -48,7 +54,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { items } = await request.json();
+    const body = await request.json();
+    
+    // Validate request body
+    const validationResult = updateCartSchema.safeParse(body);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: validationResult.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
+    }
+
+    const { items } = validationResult.data;
 
     // Check if cart exists
     const existingCart = await db
@@ -101,12 +121,20 @@ export async function PUT(request: NextRequest) {
 
     const { productId, quantity } = await request.json();
 
-    if (!productId || typeof quantity !== "number") {
+    // Validate request body
+    const validationResult = updateCartItemSchema.safeParse({ productId, quantity });
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: "Product ID and quantity are required" },
+        {
+          error: "Validation failed",
+          details: validationResult.error.flatten().fieldErrors,
+        },
         { status: 400 }
       );
     }
+
+    const validatedData = validationResult.data;
+
     // Get current cart
     const existingCart = await db
       .select()
@@ -117,17 +145,26 @@ export async function PUT(request: NextRequest) {
     let currentItems = existingCart.length > 0 ? existingCart[0].items : [];
 
     // Update or add item
-    const itemIndex = currentItems.findIndex((item: any) => item.productId === productId);
+    const itemIndex = currentItems.findIndex((item: any) => item.productId === validatedData.productId);
     
-    if (quantity <= 0) {
+    if (validatedData.quantity <= 0) {
       // Remove item if quantity is 0 or negative
-      currentItems = currentItems.filter((item: any) => item.productId !== productId);
+      currentItems = currentItems.filter((item: any) => item.productId !== validatedData.productId);
     } else if (itemIndex >= 0) {
       // Update existing item
-      currentItems[itemIndex] = { productId, quantity };
+      currentItems[itemIndex] = { productId: validatedData.productId, quantity: validatedData.quantity };
     } else {
-      // Add new item
-      currentItems.push({ productId, quantity });
+      // Add new item - check cart item limit
+      if (currentItems.length >= MAX_CART_ITEMS) {
+        return NextResponse.json(
+          {
+            error: "Validation failed",
+            details: { items: [`Cart cannot contain more than ${MAX_CART_ITEMS} items`] },
+          },
+          { status: 400 }
+        );
+      }
+      currentItems.push({ productId: validatedData.productId, quantity: validatedData.quantity });
     }
 
     if (existingCart.length === 0) {

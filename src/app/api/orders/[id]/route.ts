@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import db from "@/db/index";
 import { orders } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { updateOrderSchema } from "@/lib/validations/order";
 
 // GET single order by ID
 export async function GET(
@@ -39,10 +41,24 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    // Validate request body
+    const validationResult = updateOrderSchema.safeParse(body);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: validationResult.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validationResult.data;
+
     const updatedOrder = await db
       .update(orders)
       .set({
-        ...body,
+        ...validatedData,
         updatedAt: new Date().toISOString(),
       })
       .where(eq(orders.id, Number(id)))
@@ -55,6 +71,18 @@ export async function PUT(
     return NextResponse.json(updatedOrder[0]);
   } catch (error) {
     console.error("Error updating order:", error);
+    
+    // Check if it's a Zod error
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
       { error: "Failed to update order" },
       { status: 500 }

@@ -2,12 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/db/index";
 import { products } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
+import { createProductSchema, productQuerySchema } from "@/lib/validations/product";
+import { ZodError } from "zod";
 
-// GET all products (with optional category filter)
+// GET all products (with optional filters)
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const category = searchParams.get("category");
+    
+    // Validate query parameters
+    const queryValidation = productQuerySchema.safeParse({
+      category: searchParams.get("category") || undefined,
+      minPrice: searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined,
+      maxPrice: searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined,
+      search: searchParams.get("search") || undefined,
+      page: searchParams.get("page") || undefined,
+      limit: searchParams.get("limit") || undefined,
+    });
+
+    if (!queryValidation.success) {
+      const errors = queryValidation.error.flatten().fieldErrors;
+      return NextResponse.json(
+        { error: "Invalid query parameters", details: errors },
+        { status: 400 }
+      );
+    }
+
+    const { category } = queryValidation.data;
 
     let query = db.select().from(products);
 
@@ -59,27 +80,46 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    // Validate request body
+    const validated = createProductSchema.safeParse(body);
+    
+    if (!validated.success) {
+      const errors = validated.error.flatten().fieldErrors;
+      return NextResponse.json(
+        { error: "Validation failed", details: errors },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validated.data;
+
     const newProduct = await db
       .insert(products)
       .values({
-        name: body.name,
-        company: body.company,
-        category: body.category,
-        imageSrc: body.imageSrc,
-        imageAlt: body.imageAlt || body.name,
-        imageHoverSrc: body.imageHoverSrc || null,
-        imageHoverAlt: body.imageHoverAlt || null,
-        description: body.description,
-        priceRegular: body.priceRegular.toString(),
-        priceSale: body.priceSale ? body.priceSale.toString() : null,
-        priceCurrency: body.priceCurrency || "USD",
-        badgeText: body.badgeText || null,
-        badgeBackgroundColor: body.badgeBackgroundColor || null,
+        name: validatedData.name,
+        company: validatedData.company,
+        category: validatedData.category,
+        imageSrc: validatedData.imageSrc,
+        imageAlt: validatedData.imageAlt,
+        imageHoverSrc: validatedData.imageHoverSrc || null,
+        imageHoverAlt: validatedData.imageHoverAlt || null,
+        description: validatedData.description,
+        priceRegular: validatedData.priceRegular.toString(),
+        priceSale: validatedData.priceSale ? validatedData.priceSale.toString() : null,
+        priceCurrency: validatedData.priceCurrency,
+        badgeText: validatedData.badgeText || null,
+        badgeBackgroundColor: validatedData.badgeBackgroundColor || null,
       })
       .returning();
 
     return NextResponse.json(newProduct[0], { status: 201 });
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: "Validation failed", details: error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
     console.error("Error creating product:", error);
     return NextResponse.json(
       { error: "Failed to create product" },

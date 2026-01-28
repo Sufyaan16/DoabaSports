@@ -18,12 +18,15 @@ import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { useState } from "react";
 import { useUser } from "@stackframe/stack";
+import { checkoutFormSchema } from "@/lib/validations/checkout";
+import { z } from "zod";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const user = useUser();
   const { cart, updateQuantity, removeFromCart, getCartTotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const cartTotal = getCartTotal();
   const shippingCost = cartTotal > 0 ? 15 : 0;
@@ -33,16 +36,45 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    setErrors({});
 
     const formData = new FormData(e.currentTarget);
-    const firstName = formData.get("firstName") as string;
-    const lastName = formData.get("lastName") as string;
-    const email = formData.get("email") as string;
-    const phone = formData.get("phone") as string;
-    const address = formData.get("address") as string;
-    const city = formData.get("city") as string;
-    const state = formData.get("state") as string;
-    const zip = formData.get("zip") as string;
+    const formValues = {
+      firstName: formData.get("firstName") as string,
+      lastName: formData.get("lastName") as string,
+      email: formData.get("email") as string,
+      phone: formData.get("phone") as string,
+      address: formData.get("address") as string,
+      city: formData.get("city") as string,
+      state: formData.get("state") as string,
+      zip: formData.get("zip") as string,
+    };
+
+    // Validate form data
+    const validationResult = checkoutFormSchema.safeParse(formValues);
+    if (!validationResult.success) {
+      const fieldErrors = validationResult.error.flatten().fieldErrors;
+      const errorMessages: Record<string, string> = {};
+      
+      Object.entries(fieldErrors).forEach(([key, value]) => {
+        if (value && value.length > 0) {
+          errorMessages[key] = value[0];
+        }
+      });
+      
+      setErrors(errorMessages);
+      setLoading(false);
+      
+      await Swal.fire({
+        title: "Validation Error",
+        text: "Please check the form for errors and try again.",
+        icon: "error",
+      });
+      
+      return;
+    }
+
+    const validated = validationResult.data;
 
     // Generate order number
     const orderNumber = `ORD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
@@ -50,13 +82,13 @@ export default function CheckoutPage() {
     // Prepare order data
     const orderData = {
       orderNumber,
-      customerName: `${firstName} ${lastName}`,
-      customerEmail: email,
-      customerPhone: phone,
-      shippingAddress: address,
-      shippingCity: city,
-      shippingState: state,
-      shippingZip: zip,
+      customerName: `${validated.firstName} ${validated.lastName}`,
+      customerEmail: validated.email,
+      customerPhone: validated.phone || "",
+      shippingAddress: validated.address,
+      shippingCity: validated.city,
+      shippingState: validated.state,
+      shippingZip: validated.zip,
       shippingCountry: "USA",
       items: cart.map((item) => ({
         productId: item.id,
@@ -66,10 +98,10 @@ export default function CheckoutPage() {
         price: item.price.sale || item.price.regular,
         total: (item.price.sale || item.price.regular) * item.quantity,
       })),
-      subtotal: cartTotal.toFixed(2),
-      tax: tax.toFixed(2),
-      shippingCost: shippingCost.toFixed(2),
-      total: grandTotal.toFixed(2),
+      subtotal: parseFloat(cartTotal.toFixed(2)),
+      tax: parseFloat(tax.toFixed(2)),
+      shippingCost: parseFloat(shippingCost.toFixed(2)),
+      total: parseFloat(grandTotal.toFixed(2)),
       currency: "USD",
       status: "pending",
       paymentStatus: "unpaid",
@@ -83,11 +115,26 @@ export default function CheckoutPage() {
         body: JSON.stringify(orderData),
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to create order");
+        // Handle validation errors from server
+        if (response.status === 400 && responseData.details) {
+          setLoading(false);
+          const errorMessages = Object.entries(responseData.details)
+            .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+            .join('<br>');
+          await Swal.fire({
+            title: "Validation Error",
+            html: `Please check your order details:<br>${errorMessages}`,
+            icon: "error",
+          });
+          return;
+        }
+        throw new Error(responseData.error || "Failed to create order");
       }
 
-      const order = await response.json();
+      const order = responseData;
 
       setLoading(false);
 
@@ -96,7 +143,7 @@ export default function CheckoutPage() {
         html: `
           <p>Your order <strong>${order.orderNumber}</strong> has been placed successfully!</p>
           <p>Order Total: <strong>$${grandTotal.toFixed(2)}</strong></p>
-          <p>You will receive a confirmation email at <strong>${email}</strong></p>
+          <p>You will receive a confirmation email at <strong>${validated.email}</strong></p>
         `,
         icon: "success",
         confirmButtonText: "View My Orders",
@@ -231,11 +278,29 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name *</Label>
-                    <Input id="firstName" name="firstName" required placeholder="John" />
+                    <Input 
+                      id="firstName" 
+                      name="firstName" 
+                      required 
+                      placeholder="John"
+                      className={errors.firstName ? "border-red-500" : ""}
+                    />
+                    {errors.firstName && (
+                      <p className="text-sm text-red-500">{errors.firstName}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name *</Label>
-                    <Input id="lastName" name="lastName" required placeholder="Doe" />
+                    <Input 
+                      id="lastName" 
+                      name="lastName" 
+                      required 
+                      placeholder="Doe"
+                      className={errors.lastName ? "border-red-500" : ""}
+                    />
+                    {errors.lastName && (
+                      <p className="text-sm text-red-500">{errors.lastName}</p>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -247,28 +312,77 @@ export default function CheckoutPage() {
                     required 
                     placeholder="john@example.com"
                     defaultValue={user?.primaryEmail || ""}
+                    className={errors.email ? "border-red-500" : ""}
                   />
+                  {errors.email && (
+                    <p className="text-sm text-red-500">{errors.email}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input id="phone" name="phone" type="tel" required placeholder="+1 (555) 000-0000" />
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input 
+                    id="phone" 
+                    name="phone" 
+                    type="tel" 
+                    placeholder="+1 (555) 000-0000"
+                    className={errors.phone ? "border-red-500" : ""}
+                  />
+                  {errors.phone && (
+                    <p className="text-sm text-red-500">{errors.phone}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address">Address *</Label>
-                  <Input id="address" name="address" required placeholder="123 Main St" />
+                  <Input 
+                    id="address" 
+                    name="address" 
+                    required 
+                    placeholder="123 Main St"
+                    className={errors.address ? "border-red-500" : ""}
+                  />
+                  {errors.address && (
+                    <p className="text-sm text-red-500">{errors.address}</p>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="city">City *</Label>
-                    <Input id="city" name="city" required placeholder="New York" />
+                    <Input 
+                      id="city" 
+                      name="city" 
+                      required 
+                      placeholder="New York"
+                      className={errors.city ? "border-red-500" : ""}
+                    />
+                    {errors.city && (
+                      <p className="text-sm text-red-500">{errors.city}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="state">State *</Label>
-                    <Input id="state" name="state" required placeholder="NY" />
+                    <Input 
+                      id="state" 
+                      name="state" 
+                      required 
+                      placeholder="NY"
+                      className={errors.state ? "border-red-500" : ""}
+                    />
+                    {errors.state && (
+                      <p className="text-sm text-red-500">{errors.state}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="zip">ZIP Code *</Label>
-                    <Input id="zip" name="zip" required placeholder="10001" />
+                    <Input 
+                      id="zip" 
+                      name="zip" 
+                      required 
+                      placeholder="10001"
+                      className={errors.zip ? "border-red-500" : ""}
+                    />
+                    {errors.zip && (
+                      <p className="text-sm text-red-500">{errors.zip}</p>
+                    )}
                   </div>
                 </div>
               </form>

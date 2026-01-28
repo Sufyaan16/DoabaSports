@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { stackServerApp } from "@/stack/server";
+import { userMetadataSchema } from "@/lib/validations/user";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,13 +14,22 @@ export async function middleware(request: NextRequest) {
       // Check if metadata needs initialization
       if (user.clientReadOnlyMetadata === null) {
         try {
-          await user.update({
-            clientReadOnlyMetadata: {
-              role: "customer",
-              createdAt: new Date().toISOString(),
-            }
-          });
-          console.log("✅ Initialized metadata for user:", user.primaryEmail);
+          const newMetadata = {
+            role: "customer" as const,
+            createdAt: new Date().toISOString(),
+          };
+
+          // Validate metadata before saving
+          const validation = userMetadataSchema.safeParse(newMetadata);
+          
+          if (!validation.success) {
+            console.error("❌ Invalid user metadata:", validation.error.flatten().fieldErrors);
+          } else {
+            await user.update({
+              clientReadOnlyMetadata: newMetadata
+            });
+            console.log("✅ Initialized metadata for user:", user.primaryEmail);
+          }
         } catch (updateError) {
           console.error("❌ Error updating user metadata:", updateError);
         }

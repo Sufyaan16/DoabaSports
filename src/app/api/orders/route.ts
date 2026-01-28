@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import db from "@/db/index";
 import { orders } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
+import { z } from "zod";
+import { createOrderSchema } from "@/lib/validations/order";
 
 // GET all orders
 export async function GET() {
@@ -26,14 +28,77 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const newOrder = await db
-      .insert(orders)
-      .values(body)
-      .returning();
+    // Validate request body
+    const validationResult = createOrderSchema.safeParse(body);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: validationResult.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(newOrder[0], { status: 201 });
+    const validatedData = validationResult.data;
+
+    // Check for order number uniqueness
+    const existingOrder = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.orderNumber, validatedData.orderNumber))
+      .limit(1);
+
+    if (existingOrder.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: { orderNumber: ["Order number already exists"] },
+        },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const newOrder = await db
+        .insert(orders)
+        .values({
+          ...validatedData,
+          subtotal: validatedData.subtotal.toString(),
+          tax: validatedData.tax.toString(),
+          shippingCost: validatedData.shippingCost.toString(),
+          total: validatedData.total.toString(),
+        })
+        .returning();
+
+      return NextResponse.json(newOrder[0], { status: 201 });
+    } catch (insertError: any) {
+      // Handle database unique constraint violation for orderNumber
+      if (insertError?.code === '23505' || insertError?.constraint?.includes('order_number')) {
+        return NextResponse.json(
+          {
+            error: "Validation failed",
+            details: { orderNumber: ["Order number already exists"] },
+          },
+          { status: 400 }
+        );
+      }
+      throw insertError;
+    }
   } catch (error) {
     console.error("Error creating order:", error);
+    
+    // Check if it's a Zod error that somehow wasn't caught
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
       { error: "Failed to create order" },
       { status: 500 }

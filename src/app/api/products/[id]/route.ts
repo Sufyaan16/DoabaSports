@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/db/index";
 import { products } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { updateProductSchema } from "@/lib/validations/product";
 
 // GET single product
 export async function GET(
@@ -68,24 +69,41 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    // Validate request body
+    const validated = updateProductSchema.safeParse(body);
+    
+    if (!validated.success) {
+      const errors = validated.error.flatten().fieldErrors;
+      return NextResponse.json(
+        { error: "Validation failed", details: errors },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validated.data;
+
+    // Build update object with only provided fields
+    const updateData: any = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (validatedData.name !== undefined) updateData.name = validatedData.name;
+    if (validatedData.company !== undefined) updateData.company = validatedData.company;
+    if (validatedData.category !== undefined) updateData.category = validatedData.category;
+    if (validatedData.imageSrc !== undefined) updateData.imageSrc = validatedData.imageSrc;
+    if (validatedData.imageAlt !== undefined) updateData.imageAlt = validatedData.imageAlt;
+    if (validatedData.imageHoverSrc !== undefined) updateData.imageHoverSrc = validatedData.imageHoverSrc || null;
+    if (validatedData.imageHoverAlt !== undefined) updateData.imageHoverAlt = validatedData.imageHoverAlt || null;
+    if (validatedData.description !== undefined) updateData.description = validatedData.description;
+    if (validatedData.priceRegular !== undefined) updateData.priceRegular = validatedData.priceRegular.toString();
+    if (validatedData.priceSale !== undefined) updateData.priceSale = validatedData.priceSale ? validatedData.priceSale.toString() : null;
+    if (validatedData.priceCurrency !== undefined) updateData.priceCurrency = validatedData.priceCurrency;
+    if (validatedData.badgeText !== undefined) updateData.badgeText = validatedData.badgeText || null;
+    if (validatedData.badgeBackgroundColor !== undefined) updateData.badgeBackgroundColor = validatedData.badgeBackgroundColor || null;
+
     const updated = await db
       .update(products)
-      .set({
-        name: body.name,
-        company: body.company,
-        category: body.category,
-        imageSrc: body.imageSrc,
-        imageAlt: body.imageAlt || body.name,
-        imageHoverSrc: body.imageHoverSrc || null,
-        imageHoverAlt: body.imageHoverAlt || null,
-        description: body.description,
-        priceRegular: body.priceRegular.toString(),
-        priceSale: body.priceSale ? body.priceSale.toString() : null,
-        priceCurrency: body.priceCurrency || "USD",
-        badgeText: body.badgeText || null,
-        badgeBackgroundColor: body.badgeBackgroundColor || null,
-        updatedAt: new Date().toISOString(),
-      })
+      .set(updateData)
       .where(eq(products.id, parseInt(id)))
       .returning();
 
