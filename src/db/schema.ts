@@ -83,7 +83,19 @@ export const orders = pgTable("orders", {
   deliveredAt: timestamp("delivered_at", { mode: "string" }),
 });
 
-const schema = { categories, products, orders };
+// Cart Table
+export const carts = pgTable("carts", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().unique(), // StackAuth user ID
+  items: json("items").notNull().$type<Array<{
+    productId: number;
+    quantity: number;
+  }>>().default([]),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
+});
+
+const schema = { categories, products, orders, carts };
 
 export default schema;
 
@@ -96,3 +108,6 @@ export type NewProduct = typeof products.$inferInsert;
 
 export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;
+
+export type Cart = typeof carts.$inferSelect;
+export type NewCart = typeof carts.$inferInsert;

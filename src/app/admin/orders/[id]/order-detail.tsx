@@ -45,6 +45,7 @@ export function OrderDetail({ order: initialOrder }: OrderDetailProps) {
   const [order, setOrder] = useState(initialOrder);
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || "");
   const [status, setStatus] = useState(order.status);
+  const [paymentStatus, setPaymentStatus] = useState(order.paymentStatus);
 
   const handleUpdateTracking = async () => {
     try {
@@ -99,6 +100,36 @@ export function OrderDetail({ order: initialOrder }: OrderDetailProps) {
       await Swal.fire({
         title: "Error!",
         text: "Failed to update order status.",
+        icon: "error",
+      });
+    }
+  };
+
+  const handleUpdatePaymentStatus = async () => {
+    try {
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentStatus }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update payment status");
+
+      setOrder({ ...order, paymentStatus });
+
+      await Swal.fire({
+        title: "Updated!",
+        text: "Payment status has been updated.",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      router.refresh();
+    } catch (error) {
+      await Swal.fire({
+        title: "Error!",
+        text: "Failed to update payment status.",
         icon: "error",
       });
     }
@@ -386,18 +417,68 @@ export function OrderDetail({ order: initialOrder }: OrderDetailProps) {
                 Payment
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               <div>
-                <Label className="text-muted-foreground">Payment Status</Label>
+                <Label className="text-muted-foreground">Current Payment Status</Label>
                 <div className="mt-1">
                   <Badge className={PAYMENT_STATUS_COLORS[order.paymentStatus]}>
                     {order.paymentStatus}
                   </Badge>
                 </div>
               </div>
+
+              <div>
+                <Label>Update Payment Status</Label>
+                <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unpaid">Unpaid</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="refunded">Refunded</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  className="w-full mt-2"
+                  onClick={async () => {
+                    // Check for risky payment status transitions
+                    const isRiskyTransition = 
+                      order.paymentStatus === "paid" && 
+                      paymentStatus !== "paid";
+
+                    if (isRiskyTransition) {
+                      const result = await Swal.fire({
+                        title: "Confirm Payment Status Change",
+                        html: `
+                          <p>You are changing payment status from <strong>paid</strong> to <strong>${paymentStatus}</strong>.</p>
+                          <p class="text-red-600 mt-2">This is a sensitive operation that may affect financial records.</p>
+                          <p class="mt-2">Are you sure you want to proceed?</p>
+                        `,
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonText: "Yes, update status",
+                        cancelButtonText: "Cancel",
+                        confirmButtonColor: "#ef4444",
+                      });
+
+                      if (result.isConfirmed) {
+                        await handleUpdatePaymentStatus();
+                      }
+                    } else {
+                      await handleUpdatePaymentStatus();
+                    }
+                  }}
+                  disabled={paymentStatus === order.paymentStatus}
+                >
+                  Update Payment Status
+                </Button>
+              </div>
+
               <div>
                 <Label className="text-muted-foreground">Payment Method</Label>
-                <p className="font-medium capitalize">
+                <p className="font-medium capitalize mt-1">
                   {order.paymentMethod?.replace("_", " ") || "N/A"}
                 </p>
               </div>
