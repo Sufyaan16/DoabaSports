@@ -122,7 +122,7 @@ export function ProductsList({ products: initialProducts }: ProductsListProps) {
     <div className="flex flex-col gap-4">
       {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />

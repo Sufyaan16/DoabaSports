@@ -16,7 +16,7 @@ interface SectionCardsProps {
     productsTrend: number;
     totalRevenue: number;
     revenueTrend: number;
-    newUsers: number;
+    totalUsers: number;
     usersTrend: number;
     growthRate: number;
   };
@@ -94,12 +94,12 @@ export function SectionCards({ stats }: SectionCardsProps) {
         </CardFooter>
       </Card>
 
-      {/* New Users */}
+      {/* Total Users */}
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>New Users</CardDescription>
+          <CardDescription>Total Users</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {stats.newUsers.toLocaleString()}
+            {stats.totalUsers.toLocaleString()}
           </CardTitle>
           <CardAction>
             <Badge variant={getTrendVariant(stats.usersTrend)}>
@@ -110,11 +110,11 @@ export function SectionCards({ stats }: SectionCardsProps) {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {stats.usersTrend >= 0 ? 'User acquisition up' : 'Acquisition down'}{' '}
+            {stats.usersTrend >= 0 ? 'User base growing' : 'User base decreased'}{' '}
             {stats.usersTrend >= 0 ? <IconTrendingUp className="size-4" /> : <IconTrendingDown className="size-4" />}
           </div>
           <div className="text-muted-foreground">
-            New signups in last 30 days
+            All registered users
           </div>
         </CardFooter>
       </Card>

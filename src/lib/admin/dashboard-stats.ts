@@ -76,9 +76,10 @@ export async function getNewUsersCount() {
     
     // Count users created in last 30 days
     const newUsers = users.filter(user => {
-      // Use createdAt from metadata if available
+      // Use createdAt from metadata if available, otherwise use fallback date (project start)
       const createdAtStr = (user.clientReadOnlyMetadata as any)?.createdAt;
-      if (!createdAtStr) return false; // Skip users without metadata
+      // If no metadata, treat as old user (created before tracking started)
+      if (!createdAtStr) return false;
       const createdAt = new Date(createdAtStr);
       return createdAt >= thirtyDaysAgo;
     });
@@ -116,7 +117,8 @@ export async function getPreviousUsersCount(daysAgo: number = 30) {
     const previousUsers = users.filter(user => {
       // Use createdAt from metadata if available
       const createdAtStr = (user.clientReadOnlyMetadata as any)?.createdAt;
-      if (!createdAtStr) return false; // Skip users without metadata
+      // Users without metadata are counted as old users (created before tracking)
+      if (!createdAtStr) return true;
       const createdAt = new Date(createdAtStr);
       return createdAt < dateThreshold;
     });
@@ -182,12 +184,14 @@ export async function getUsersByDateRange(days: number = 90) {
     
     // Group users by date
     const usersByDate: Record<string, number> = {};
+    // Fallback date for users without metadata (project start date)
+    const fallbackDate = new Date('2026-01-01');
     
     users.forEach(user => {
-      // Use createdAt from metadata if available
+      // Use createdAt from metadata if available, otherwise use fallback
       const createdAtStr = (user.clientReadOnlyMetadata as any)?.createdAt;
-      if (!createdAtStr) return; // Skip users without metadata
-      const createdAt = new Date(createdAtStr);
+      const createdAt = createdAtStr ? new Date(createdAtStr) : fallbackDate;
+      
       if (createdAt >= startDate) {
         const dateKey = createdAt.toISOString().split('T')[0];
         usersByDate[dateKey] = (usersByDate[dateKey] || 0) + 1;
@@ -221,18 +225,20 @@ export async function getRecentSignups(limit: number = 5) {
     const users = await stackServerApp.listUsers();
     
     // Sort by creation date (newest first) and take limit
+    // Fallback date for users without metadata
+    const fallbackDate = new Date('2026-01-01').toISOString();
+    
     const recentUsers = users
-      .filter(user => (user.clientReadOnlyMetadata as any)?.createdAt) // Only include users with metadata
       .sort((a, b) => {
-        const aTime = new Date((a.clientReadOnlyMetadata as any)?.createdAt).getTime();
-        const bTime = new Date((b.clientReadOnlyMetadata as any)?.createdAt).getTime();
+        const aTime = new Date((a.clientReadOnlyMetadata as any)?.createdAt || fallbackDate).getTime();
+        const bTime = new Date((b.clientReadOnlyMetadata as any)?.createdAt || fallbackDate).getTime();
         return bTime - aTime;
       })
       .slice(0, limit)
       .map(user => ({
         id: user.id,
         email: user.primaryEmail || 'No email',
-        createdAt: (user.clientReadOnlyMetadata as any)?.createdAt,
+        createdAt: (user.clientReadOnlyMetadata as any)?.createdAt || fallbackDate,
         displayName: user.displayName || user.primaryEmail || 'Unknown User'
       }));
     
@@ -288,16 +294,16 @@ export async function getDashboardStats() {
     previousProducts,
     totalRevenue,
     previousRevenue,
-    newUsers,
-    previousNewUsers,
+    totalUsers,
+    previousTotalUsers,
     growthRate
   ] = await Promise.all([
     getTotalProducts(),
     getPreviousProductsCount(30),
     getRevenueByDateRange(thirtyDaysAgo.toISOString(), now.toISOString()),
     getRevenueByDateRange(sixtyDaysAgo.toISOString(), thirtyDaysAgo.toISOString()),
-    getNewUsersCount(),
-    await getPreviousUsersCount(60) - await getPreviousUsersCount(30), // Users from 60-30 days ago
+    getTotalUsersCount(),
+    getPreviousUsersCount(30), // Total users as of 30 days ago
     getGrowthRate()
   ]);
   
@@ -306,8 +312,8 @@ export async function getDashboardStats() {
     productsTrend: calculateTrend(totalProducts, previousProducts),
     totalRevenue,
     revenueTrend: calculateTrend(totalRevenue, previousRevenue),
-    newUsers,
-    usersTrend: calculateTrend(newUsers, previousNewUsers),
+    totalUsers,
+    usersTrend: calculateTrend(totalUsers, previousTotalUsers),
     growthRate
   };
 }

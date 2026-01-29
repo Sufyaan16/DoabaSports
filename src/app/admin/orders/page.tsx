@@ -10,8 +10,8 @@ export default async function AdminOrdersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Orders Management</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-3xl font-bold p-4">Orders Management</h1>
+        <p className="text-muted-foreground pl-5">
           View and manage all customer orders
         </p>
       </div>
