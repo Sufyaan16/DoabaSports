@@ -4,9 +4,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { stackClientApp } from "../stack/client";
 // @ts-ignore
 import "./globals.css";
-import { ConditionalLayout } from "@/components/conditional-layout";
-import NavBar from "@/components/nav/nav-bar";
-import { CartProvider } from "@/contexts/cart-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,13 +31,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <StackProvider app={stackClientApp}>
-          <StackTheme>
-            <CartProvider>
-              <ConditionalLayout navbar={<NavBar />}>
-                {children}
-              </ConditionalLayout>
-            </CartProvider>
-          </StackTheme>
+          <StackTheme>{children}</StackTheme>
         </StackProvider>
       </body>
     </html>
