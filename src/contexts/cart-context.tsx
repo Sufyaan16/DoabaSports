@@ -258,9 +258,9 @@ function CartLoadingSkeleton() {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<CartLoadingSkeleton />}>
+
       <CartProviderInner>{children}</CartProviderInner>
-    </Suspense>
+    
   );
 }
 

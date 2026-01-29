@@ -10,91 +10,137 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export function SectionCards() {
+interface SectionCardsProps {
+  stats: {
+    totalProducts: number;
+    productsTrend: number;
+    totalRevenue: number;
+    revenueTrend: number;
+    newUsers: number;
+    usersTrend: number;
+    growthRate: number;
+  };
+}
+
+export function SectionCards({ stats }: SectionCardsProps) {
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(value);
+  };
+
+  const formatPercentage = (value: number) => {
+    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+  };
+
+  const getTrendIcon = (trend: number) => {
+    return trend >= 0 ? IconTrendingUp : IconTrendingDown;
+  };
+
+  const getTrendVariant = (trend: number): "default" | "outline" => {
+    return "outline";
+  };
+
   return (
     <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+      {/* Total Products */}
+      <Card className="@container/card">
+        <CardHeader>
+          <CardDescription>Total Products</CardDescription>
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+            {stats.totalProducts.toLocaleString()}
+          </CardTitle>
+          <CardAction>
+            <Badge variant={getTrendVariant(stats.productsTrend)}>
+              {stats.productsTrend >= 0 ? <IconTrendingUp /> : <IconTrendingDown />}
+              {formatPercentage(stats.productsTrend)}
+            </Badge>
+          </CardAction>
+        </CardHeader>
+        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+          <div className="line-clamp-1 flex gap-2 font-medium">
+            {stats.productsTrend >= 0 ? 'Growing inventory' : 'Inventory decreased'}{' '}
+            {stats.productsTrend >= 0 ? <IconTrendingUp className="size-4" /> : <IconTrendingDown className="size-4" />}
+          </div>
+          <div className="text-muted-foreground">
+            Products in catalog
+          </div>
+        </CardFooter>
+      </Card>
+
+      {/* Total Revenue */}
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Total Revenue</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            $1,250.00
+            {formatCurrency(stats.totalRevenue)}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
-              <IconTrendingUp />
-              +12.5%
+            <Badge variant={getTrendVariant(stats.revenueTrend)}>
+              {stats.revenueTrend >= 0 ? <IconTrendingUp /> : <IconTrendingDown />}
+              {formatPercentage(stats.revenueTrend)}
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Trending up this month <IconTrendingUp className="size-4" />
+            {stats.revenueTrend >= 0 ? 'Revenue growing' : 'Revenue decreased'}{' '}
+            {stats.revenueTrend >= 0 ? <IconTrendingUp className="size-4" /> : <IconTrendingDown className="size-4" />}
           </div>
           <div className="text-muted-foreground">
-            Visitors for the last 6 months
+            Last 30 days performance
           </div>
         </CardFooter>
       </Card>
+
+      {/* New Users */}
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>New Customers</CardDescription>
+          <CardDescription>New Users</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            1,234
+            {stats.newUsers.toLocaleString()}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
-              <IconTrendingDown />
-              -20%
+            <Badge variant={getTrendVariant(stats.usersTrend)}>
+              {stats.usersTrend >= 0 ? <IconTrendingUp /> : <IconTrendingDown />}
+              {formatPercentage(stats.usersTrend)}
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Down 20% this period <IconTrendingDown className="size-4" />
+            {stats.usersTrend >= 0 ? 'User acquisition up' : 'Acquisition down'}{' '}
+            {stats.usersTrend >= 0 ? <IconTrendingUp className="size-4" /> : <IconTrendingDown className="size-4" />}
           </div>
           <div className="text-muted-foreground">
-            Acquisition needs attention
+            New signups in last 30 days
           </div>
         </CardFooter>
       </Card>
-      <Card className="@container/card">
-        <CardHeader>
-          <CardDescription>Active Accounts</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            45,678
-          </CardTitle>
-          <CardAction>
-            <Badge variant="outline">
-              <IconTrendingUp />
-              +12.5%
-            </Badge>
-          </CardAction>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Strong user retention <IconTrendingUp className="size-4" />
-          </div>
-          <div className="text-muted-foreground">Engagement exceed targets</div>
-        </CardFooter>
-      </Card>
+
+      {/* Growth Rate */}
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Growth Rate</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            4.5%
+            {formatPercentage(stats.growthRate)}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
-              <IconTrendingUp />
-              +4.5%
+            <Badge variant={getTrendVariant(stats.growthRate)}>
+              {stats.growthRate >= 0 ? <IconTrendingUp /> : <IconTrendingDown />}
+              {formatPercentage(stats.growthRate)}
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Steady performance increase <IconTrendingUp className="size-4" />
+            {stats.growthRate >= 0 ? 'Positive growth trend' : 'Negative growth'}{' '}
+            {stats.growthRate >= 0 ? <IconTrendingUp className="size-4" /> : <IconTrendingDown className="size-4" />}
           </div>
-          <div className="text-muted-foreground">Meets growth projections</div>
+          <div className="text-muted-foreground">
+            Month-over-month comparison
+          </div>
         </CardFooter>
       </Card>
     </div>
