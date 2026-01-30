@@ -1,6 +1,8 @@
 import { Hero3 } from "@/components/hero3";
-import { WikiCard } from "@/components/ui/wiki-card";
 import { ProductCarousel } from "@/components/product-carousel";
+import { StatsCounter } from "@/components/stats-counter";
+import { InteractiveCategories } from "@/components/interactive-categories";
+import { TrustMarquee } from "@/components/trust-marquee";
 import db from "@/db";
 import { products } from "@/db/schema";
 import { desc } from "drizzle-orm";
@@ -47,6 +49,9 @@ export default async function Home() {
   return (
     <>
       <Hero3 className="mx-20"/>
+      <TrustMarquee />
+      <StatsCounter />
+      <InteractiveCategories />
       <ProductCarousel products={transformedProducts} />
     </>
   );

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CategoryPageClient } from "@/app/products/categories/[slug]/category-page-client";
+import { CategoryPageClient } from "@/app/(main)/products/categories/[slug]/category-page-client";
 import db from "@/db";
 import { categories, products } from "@/db/schema";
 import { eq } from "drizzle-orm";
