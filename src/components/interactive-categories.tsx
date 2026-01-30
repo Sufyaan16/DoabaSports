@@ -16,28 +16,28 @@ interface Category {
 const categories: Category[] = [
   {
     name: "Cricket Bats",
-    slug: "bats",
+    slug: "cricketbats",
     description: "Premium English & Kashmir Willow bats for all skill levels",
     image: "https://images.unsplash.com/photo-1624526267942-ab0ff8a3e972?w=600&q=80",
     productCount: 150,
   },
   {
-    name: "Cricket Balls",
-    slug: "balls",
-    description: "Professional leather balls for match & practice",
+    name: "Sports Apparel",
+    slug: "cricketgear",
+    description: "High-performance cricket clothing and training gear",
     image: "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=600&q=80",
     productCount: 80,
   },
   {
-    name: "Protective Gear",
-    slug: "protective-gear",
+    name: "Protection Gear",
+    slug: "cricketgloves",
     description: "Helmets, pads, gloves & guards for complete protection",
     image: "https://images.unsplash.com/photo-1593766827228-8737b4534aa6?w=600&q=80",
     productCount: 120,
   },
   {
     name: "Accessories",
-    slug: "accessories",
+    slug: "cricketaccessories",
     description: "Bags, grips, oils & everything you need",
     image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600&q=80",
     productCount: 200,
@@ -98,7 +98,7 @@ export function InteractiveCategories({ className }: InteractiveCategoriesProps)
         >
           {categories.map((category, index) => (
             <motion.div key={category.slug} variants={cardVariants}>
-              <Link href={`/categories/${category.slug}`} className="block group">
+              <Link href={`products/categories/${category.slug}`} className="block group">
                 <motion.div
                   whileHover={{ y: -8 }}
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
