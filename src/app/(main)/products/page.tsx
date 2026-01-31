@@ -1,13 +1,24 @@
 import { ProductsPageClient } from "./products-page-client";
 import db from "@/db";
 import { products, categories } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import type { Product } from "@/lib/data/products";
 import type { CategoryInfo } from "@/lib/data/categories";
 
+const INITIAL_PRODUCTS_LIMIT = 12;
+
 export default async function ProductsPage() {
-  // Fetch products from database
-  const dbProducts = await db.select().from(products).orderBy(desc(products.id));
+  // Fetch initial products with limit for pagination
+  const dbProducts = await db
+    .select()
+    .from(products)
+    .orderBy(desc(products.id))
+    .limit(INITIAL_PRODUCTS_LIMIT);
+
+  // Get total count
+  const [{ count: totalCount }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(products);
 
   // Fetch categories from database
   const dbCategories = await db.select().from(categories).orderBy(desc(categories.id));
@@ -54,8 +65,9 @@ export default async function ProductsPage() {
 
   return (
     <ProductsPageClient 
-      products={transformedProducts} 
+      initialProducts={transformedProducts} 
       categories={transformedCategories}
+      totalCount={totalCount}
     />
   );
 }

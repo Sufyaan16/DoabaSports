@@ -161,7 +161,7 @@ export function TestimonialsCarousel({ className }: TestimonialsCarouselProps) {
                       </div>
 
                       {/* Review Text */}
-                      <p className="text-muted-foreground flex-grow mb-6 leading-relaxed">
+                      <p className="text-muted-foreground grow mb-6 leading-relaxed">
                         "{testimonial.review}"
                       </p>
 

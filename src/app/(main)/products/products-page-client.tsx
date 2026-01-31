@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ProductsGrid } from "@/components/products-grid";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Product } from "@/lib/data/products";
 import type { CategoryInfo } from "@/lib/data/categories";
 import { cn } from "@/lib/utils";
@@ -17,11 +18,15 @@ import {
   IconCheck,
   IconChevronDown,
   IconSparkles,
+  IconLoader2,
 } from "@tabler/icons-react";
 
+const PRODUCTS_PER_PAGE = 12;
+
 interface ProductsPageClientProps {
-  products: Product[];
+  initialProducts: Product[];
   categories: CategoryInfo[];
+  totalCount: number;
 }
 
 // Animated Number Component
@@ -48,7 +53,37 @@ const sortOptions = [
   { value: "name-desc", label: "Name: Z to A" },
 ];
 
-export function ProductsPageClient({ products, categories }: ProductsPageClientProps) {
+// Loading skeleton for products
+function ProductsLoadingSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="rounded-xl border bg-card overflow-hidden">
+          <Skeleton className="aspect-square w-full" />
+          <div className="p-4 space-y-3">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-6 w-1/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ProductsPageClient({ 
+  initialProducts, 
+  categories, 
+  totalCount: initialTotalCount 
+}: ProductsPageClientProps) {
+  // Products state
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [totalCount, setTotalCount] = useState(initialTotalCount);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(initialProducts.length < initialTotalCount);
+  
+  // Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -57,7 +92,54 @@ export function ProductsPageClient({ products, categories }: ProductsPageClientP
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  
+  // Refs
   const sortRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const isInitialMount = useRef(true);
+
+  // Fetch products from API
+  const fetchProducts = useCallback(async (
+    pageNum: number,
+    category: string,
+    search: string,
+    sort: string,
+    append: boolean = false
+  ) => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: PRODUCTS_PER_PAGE.toString(),
+        sortBy: sort,
+      });
+      
+      if (category !== "all") {
+        params.set("category", category);
+      }
+      if (search.trim()) {
+        params.set("search", search);
+      }
+
+      const response = await fetch(`/api/products?${params.toString()}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        if (append) {
+          setProducts(prev => [...prev, ...data.products]);
+        } else {
+          setProducts(data.products);
+        }
+        setTotalCount(data.pagination.totalCount);
+        setHasMore(data.pagination.hasNextPage);
+        setPage(pageNum);
+      }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   // Close sort dropdown on outside click
   useEffect(() => {
@@ -76,12 +158,39 @@ export function ProductsPageClient({ products, categories }: ProductsPageClientP
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
       setIsTyping(false);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Fetch when filters change (skip initial mount)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchProducts(1, selectedCategory, debouncedSearchQuery, sortBy, false);
+  }, [selectedCategory, debouncedSearchQuery, sortBy, fetchProducts]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoading) {
+          fetchProducts(page + 1, selectedCategory, debouncedSearchQuery, sortBy, true);
+        }
+      },
+      { threshold: 0.1, rootMargin: "100px" }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, isLoading, page, selectedCategory, debouncedSearchQuery, sortBy, fetchProducts]);
+
   // Get active filters for tags
-  const activeFilters = useMemo(() => {
+  const activeFilters = (() => {
     const filters: { key: string; label: string; value: string }[] = [];
     if (selectedCategory !== "all") {
       const cat = categories.find((c) => c.slug === selectedCategory);
@@ -91,49 +200,7 @@ export function ProductsPageClient({ products, categories }: ProductsPageClientP
       filters.push({ key: "search", label: `"${debouncedSearchQuery}"`, value: debouncedSearchQuery });
     }
     return filters;
-  }, [selectedCategory, debouncedSearchQuery, categories]);
-
-  // Filter and sort products
-  const filteredProducts = useMemo(() => {
-    let filtered = [...products];
-
-    // Filter by category
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter((product) => product.category === selectedCategory);
-    }
-
-    // Filter by search query
-    if (debouncedSearchQuery.trim() !== "") {
-      const query = debouncedSearchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (product) =>
-          product.name.toLowerCase().includes(query) ||
-          product.company.toLowerCase().includes(query) ||
-          product.description.toLowerCase().includes(query)
-      );
-    }
-
-    // Sort products
-    switch (sortBy) {
-      case "price-low":
-        filtered.sort((a, b) => (a.price.sale || a.price.regular) - (b.price.sale || b.price.regular));
-        break;
-      case "price-high":
-        filtered.sort((a, b) => (b.price.sale || b.price.regular) - (a.price.sale || a.price.regular));
-        break;
-      case "name-asc":
-        filtered.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case "name-desc":
-        filtered.sort((a, b) => b.name.localeCompare(a.name));
-        break;
-      case "newest":
-      default:
-        break;
-    }
-
-    return filtered;
-  }, [products, selectedCategory, debouncedSearchQuery, sortBy]);
+  })();
 
   const clearFilter = (key: string) => {
     if (key === "category") setSelectedCategory("all");
@@ -277,7 +344,6 @@ export function ProductsPageClient({ products, categories }: ProductsPageClientP
           <motion.div
             animate={{ 
               scale: isTyping ? [1, 1.2, 1] : 1,
-              rotate: isTyping ? [0, -10, 10, 0] : 0
             }}
             transition={{ duration: 0.3 }}
             className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
@@ -456,15 +522,15 @@ export function ProductsPageClient({ products, categories }: ProductsPageClientP
         className="mb-6 flex items-center gap-2"
       >
         <span className="text-sm text-muted-foreground">
-          Showing <span className="font-semibold text-foreground"><AnimatedNumber value={filteredProducts.length} /></span> of{" "}
-          <span className="font-semibold text-foreground">{products.length}</span> products
+          Showing <span className="font-semibold text-foreground"><AnimatedNumber value={products.length} /></span> of{" "}
+          <span className="font-semibold text-foreground">{totalCount}</span> products
         </span>
         
         {/* Progress bar */}
         <div className="flex-1 max-w-32 h-1.5 bg-muted rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
-            animate={{ width: `${(filteredProducts.length / products.length) * 100}%` }}
+            animate={{ width: `${(products.length / Math.max(totalCount, 1)) * 100}%` }}
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="h-full bg-primary rounded-full"
           />
@@ -472,10 +538,41 @@ export function ProductsPageClient({ products, categories }: ProductsPageClientP
       </motion.div>
 
       {/* Products Grid/List */}
-      {filteredProducts.length > 0 ? (
-        <div key={`${selectedCategory}-${viewMode}`}>
-          <ProductsGrid products={filteredProducts} viewMode={viewMode} />
-        </div>
+      {products.length > 0 ? (
+        <>
+          <div key={`${selectedCategory}-${viewMode}`}>
+            <ProductsGrid products={products} viewMode={viewMode} />
+          </div>
+          
+          {/* Load More Trigger / Loading State */}
+          <div ref={loadMoreRef} className="mt-8">
+            {isLoading && (
+              <div className="flex flex-col items-center justify-center py-8">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <IconLoader2 className="size-8 text-primary" />
+                </motion.div>
+                <p className="text-sm text-muted-foreground mt-2">Loading more products...</p>
+              </div>
+            )}
+            
+            {!hasMore && products.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-8"
+              >
+                <p className="text-sm text-muted-foreground">
+                  You've seen all {totalCount} products
+                </p>
+              </motion.div>
+            )}
+          </div>
+        </>
+      ) : isLoading ? (
+        <ProductsLoadingSkeleton />
       ) : (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}

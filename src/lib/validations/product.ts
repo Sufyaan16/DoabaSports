@@ -34,17 +34,20 @@ const baseProductSchema = z.object({
   imageAlt: z.string()
     .min(1, "Image alt text is required")
     .max(200, "Alt text must be 200 characters or less"),
-  imageHoverSrc: z.string().url("Invalid hover image URL").optional(),
+  imageHoverSrc: z.string().url("Invalid hover image URL").optional().nullable(),
   imageHoverAlt: z.string()
     .max(200, "Hover alt text must be 200 characters or less")
-    .optional(),
+    .optional()
+    .nullable(),
   badgeText: z.string()
     .min(1)
     .max(20, "Badge text must be 20 characters or less")
-    .optional(),
+    .optional()
+    .nullable(),
   badgeBackgroundColor: z.string()
     .regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format (use hex #RRGGBB)")
-    .optional(),
+    .optional()
+    .nullable(),
 });
 
 // Create product schema (all fields required except optional ones)
@@ -85,6 +88,7 @@ export const productQuerySchema = z.object({
   search: searchQuerySchema,
   page: pageSchema,
   limit: limitSchema,
+  sortBy: z.enum(["newest", "price-low", "price-high", "name-asc", "name-desc"]).default("newest"),
 });
 
 // Type exports

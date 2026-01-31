@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/db/index";
 import { products } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql, like, or, and, SQL } from "drizzle-orm";
 import { createProductSchema, productQuerySchema } from "@/lib/validations/product";
 import { ZodError } from "zod";
 
-// GET all products (with optional filters)
+// GET all products (with pagination and filters)
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -16,8 +16,9 @@ export async function GET(request: NextRequest) {
       minPrice: searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined,
       maxPrice: searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined,
       search: searchParams.get("search") || undefined,
-      page: searchParams.get("page") || undefined,
-      limit: searchParams.get("limit") || undefined,
+      page: searchParams.get("page") ? Number(searchParams.get("page")) : 1,
+      limit: searchParams.get("limit") ? Number(searchParams.get("limit")) : 12,
+      sortBy: searchParams.get("sortBy") || "newest",
     });
 
     if (!queryValidation.success) {
@@ -28,16 +29,65 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { category } = queryValidation.data;
+    const { category, search, page, limit, sortBy } = queryValidation.data;
+    
+    // Calculate offset
+    const offset = (page - 1) * limit;
 
-    let query = db.select().from(products);
-
-    // Apply category filter if provided
+    // Build where conditions
+    const conditions: SQL[] = [];
+    
     if (category) {
-      query = query.where(eq(products.category, category)) as any;
+      conditions.push(eq(products.category, category));
+    }
+    
+    if (search) {
+      conditions.push(
+        or(
+          like(products.name, `%${search}%`),
+          like(products.company, `%${search}%`),
+          like(products.description, `%${search}%`)
+        )!
+      );
     }
 
-    const allProducts = await query.orderBy(desc(products.createdAt));
+    // Build order by clause based on sortBy
+    let orderByClause;
+    switch (sortBy) {
+      case "price-low":
+        orderByClause = sql`CAST(${products.priceRegular} AS DECIMAL) ASC`;
+        break;
+      case "price-high":
+        orderByClause = sql`CAST(${products.priceRegular} AS DECIMAL) DESC`;
+        break;
+      case "name-asc":
+        orderByClause = sql`${products.name} ASC`;
+        break;
+      case "name-desc":
+        orderByClause = sql`${products.name} DESC`;
+        break;
+      case "newest":
+      default:
+        orderByClause = desc(products.id);
+        break;
+    }
+
+    // Get total count for pagination
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    const [{ count: totalCount }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(whereClause);
+
+    // Get paginated products
+    const allProducts = await db
+      .select()
+      .from(products)
+      .where(whereClause)
+      .orderBy(orderByClause)
+      .limit(limit)
+      .offset(offset);
 
     // Transform database products to match frontend format
     const transformedProducts = allProducts.map((product) => ({
@@ -65,7 +115,22 @@ export async function GET(request: NextRequest) {
       } : undefined,
     }));
 
-    return NextResponse.json(transformedProducts);
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return NextResponse.json({
+      products: transformedProducts,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+      }
+    });
   } catch (error) {
     console.error("Error fetching products:", error);
     return NextResponse.json(
