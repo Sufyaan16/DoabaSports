@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -22,57 +22,72 @@ import { Input } from "@/components/ui/input";
 import { Product } from "@/lib/data/products";
 import { StockBadge } from "@/components/stock-badge";
 import Swal from "sweetalert2";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 interface ProductsListProps {
   products: Product[];
+  totalCount: number;
 }
 
-export function ProductsList({ products: initialProducts }: ProductsListProps) {
+export function ProductsList({ products: initialProducts, totalCount: initialTotalCount }: ProductsListProps) {
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
+  const [totalCount, setTotalCount] = useState(initialTotalCount);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"date" | "price-asc" | "price-desc" | "name">("date");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "name-asc" | "name-desc">("newest");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [isLoading, setIsLoading] = useState(false);
+  const itemsPerPage = 8;
 
-  // Filter and sort products
-  const filteredAndSortedProducts = useMemo(() => {
-    let filtered = products.filter((product) =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    // Sort
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "price-asc":
-          return (a.price.sale || a.price.regular) - (b.price.sale || b.price.regular);
-        case "price-desc":
-          return (b.price.sale || b.price.regular) - (a.price.sale || a.price.regular);
-        case "name":
-          return a.name.localeCompare(b.name);
-        case "date":
-        default:
-          return b.id - a.id; // Assuming higher ID means newer
+  // Fetch products from API
+  const fetchProducts = useCallback(async (
+    page: number,
+    search: string,
+    sort: string
+  ) => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: itemsPerPage.toString(),
+        sortBy: sort,
+      });
+      
+      if (search.trim()) {
+        params.set("search", search);
       }
-    });
 
-    return filtered;
-  }, [products, searchQuery, sortBy]);
+      const response = await fetch(`/api/products?${params.toString()}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setProducts(data.products);
+        setTotalCount(data.pagination.totalCount);
+        setCurrentPage(page);
+      }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [itemsPerPage]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
-  const paginatedProducts = filteredAndSortedProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Fetch when filters change
+  useEffect(() => {
+    fetchProducts(1, debouncedSearchQuery, sortBy);
+  }, [debouncedSearchQuery, sortBy, fetchProducts]);
 
-  // Reset to page 1 when filters change
-  useMemo(() => {
-    setCurrentPage(1);
-  }, [searchQuery, sortBy]);
+  // Pagination calculations
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const handleDelete = async (productId: number, productName: string) => {
     const result = await Swal.fire({
@@ -96,9 +111,6 @@ export function ProductsList({ products: initialProducts }: ProductsListProps) {
           throw new Error("Failed to delete product");
         }
 
-        // Remove from local state
-        setProducts(products.filter((p) => p.id !== productId));
-
         await Swal.fire({
           title: "Deleted!",
           text: `${productName} has been deleted.`,
@@ -107,7 +119,8 @@ export function ProductsList({ products: initialProducts }: ProductsListProps) {
           showConfirmButton: false,
         });
 
-        // Refresh the page to get updated data
+        // Refresh products from API
+        fetchProducts(currentPage, debouncedSearchQuery, sortBy);
         router.refresh();
       } catch (error) {
         Swal.fire({
@@ -140,10 +153,11 @@ export function ProductsList({ products: initialProducts }: ProductsListProps) {
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="date">Sort by Date</SelectItem>
-                <SelectItem value="price-asc">Price: Low to High</SelectItem>
-                <SelectItem value="price-desc">Price: High to Low</SelectItem>
-                <SelectItem value="name">Name: A to Z</SelectItem>
+                <SelectItem value="newest">Sort by Date</SelectItem>
+                <SelectItem value="price-low">Price: Low to High</SelectItem>
+                <SelectItem value="price-high">Price: High to Low</SelectItem>
+                <SelectItem value="name-asc">Name: A to Z</SelectItem>
+                <SelectItem value="name-desc">Name: Z to A</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -153,20 +167,24 @@ export function ProductsList({ products: initialProducts }: ProductsListProps) {
       {/* Products List */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">All Products ({filteredAndSortedProducts.length})</CardTitle>
+          <CardTitle className="text-xl">All Products ({totalCount})</CardTitle>
           <CardDescription>
             {searchQuery && `Showing results for "${searchQuery}"`}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {paginatedProducts.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : products.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No products found. Try adjusting your search.
             </div>
           ) : (
             <>
               <div className="space-y-4">
-                {paginatedProducts.map((product) => (
+                {products.map((product) => (
                   <div
                     key={product.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -234,8 +252,8 @@ export function ProductsList({ products: initialProducts }: ProductsListProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
+                      onClick={() => fetchProducts(currentPage - 1, debouncedSearchQuery, sortBy)}
+                      disabled={currentPage === 1 || isLoading}
                     >
                       <ChevronLeft className="h-4 w-4" />
                       Previous
@@ -243,8 +261,8 @@ export function ProductsList({ products: initialProducts }: ProductsListProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
+                      onClick={() => fetchProducts(currentPage + 1, debouncedSearchQuery, sortBy)}
+                      disabled={currentPage === totalPages || isLoading}
                     >
                       Next
                       <ChevronRight className="h-4 w-4" />

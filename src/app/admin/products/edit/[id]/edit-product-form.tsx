@@ -31,7 +31,9 @@ export function EditProductForm({ product }: EditProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>(product.image.src);
-  const [imageHoverPreview, setImageHoverPreview] = useState<string>(product.imageHover?.src || "");
+  const [imageHoverPreview, setImageHoverPreview] = useState<string>(
+    product.imageHover?.src || "",
+  );
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -61,7 +63,7 @@ export function EditProductForm({ product }: EditProductFormProps) {
 
     try {
       const formData = new FormData(e.currentTarget);
-      
+
       // Create product data object
       const productData = {
         name: formData.get("name") as string,
@@ -69,18 +71,26 @@ export function EditProductForm({ product }: EditProductFormProps) {
         category: formData.get("category") as string,
         description: formData.get("description") as string,
         priceRegular: parseFloat(formData.get("price") as string),
-        priceSale: formData.get("salePrice") ? parseFloat(formData.get("salePrice") as string) : null,
+        priceSale: formData.get("salePrice")
+          ? parseFloat(formData.get("salePrice") as string)
+          : null,
         priceCurrency: "USD",
         imageSrc: imagePreview,
         imageAlt: formData.get("name") as string,
         imageHoverSrc: imageHoverPreview || null,
-        imageHoverAlt: imageHoverPreview ? `${formData.get("name")} - Alternate View` : null,
-        badgeText: formData.get("badgeText") as string || null,
-        badgeBackgroundColor: formData.get("badgeColor") as string || null,
+        imageHoverAlt: imageHoverPreview
+          ? `${formData.get("name")} - Alternate View`
+          : null,
+        badgeText: (formData.get("badgeText") as string) || null,
+        badgeBackgroundColor: (formData.get("badgeColor") as string) || null,
         // Inventory Management
         sku: (formData.get("sku") as string) || null,
-        stockQuantity: formData.get("stockQuantity") ? parseInt(formData.get("stockQuantity") as string) : 0,
-        lowStockThreshold: formData.get("lowStockThreshold") ? parseInt(formData.get("lowStockThreshold") as string) : 10,
+        stockQuantity: formData.get("stockQuantity")
+          ? parseInt(formData.get("stockQuantity") as string)
+          : 0,
+        lowStockThreshold: formData.get("lowStockThreshold")
+          ? parseInt(formData.get("lowStockThreshold") as string)
+          : 10,
         trackInventory: formData.get("trackInventory") === "on",
       };
 
@@ -168,7 +178,9 @@ export function EditProductForm({ product }: EditProductFormProps) {
               <SelectContent>
                 <SelectItem value="cricketbats">Cricket Bats</SelectItem>
                 <SelectItem value="cricketgear">Sports Apparel</SelectItem>
-                <SelectItem value="cricketaccessories">Cricket Accessories</SelectItem>
+                <SelectItem value="cricketaccessories">
+                  Cricket Accessories
+                </SelectItem>
                 <SelectItem value="cricketgloves">Protection Gears</SelectItem>
                 <SelectItem value="tapballbats">Tape Ball Bats</SelectItem>
                 <SelectItem value="cricketbags">Cricket Bags</SelectItem>
@@ -236,7 +248,8 @@ export function EditProductForm({ product }: EditProductFormProps) {
                   />
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload a new primary image to replace the current one (JPG, PNG, or WebP)
+                  Upload a new primary image to replace the current one (JPG,
+                  PNG, or WebP)
                 </p>
               </div>
               {imagePreview && (
@@ -267,7 +280,8 @@ export function EditProductForm({ product }: EditProductFormProps) {
                   />
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload hover image (optional - shown when customer hovers over product)
+                  Upload hover image (optional - shown when customer hovers over
+                  product)
                 </p>
               </div>
               {imageHoverPreview && (
@@ -285,7 +299,7 @@ export function EditProductForm({ product }: EditProductFormProps) {
           {/* Inventory Management Section */}
           <div className="space-y-4 pt-4 border-t">
             <h3 className="text-lg font-semibold">Inventory Management</h3>
-            
+
             {/* SKU */}
             <div className="space-y-2">
               <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
@@ -345,7 +359,10 @@ export function EditProductForm({ product }: EditProductFormProps) {
                 defaultChecked={product.trackInventory !== false}
                 className="h-4 w-4 rounded border-gray-300"
               />
-              <Label htmlFor="trackInventory" className="font-normal cursor-pointer">
+              <Label
+                htmlFor="trackInventory"
+                className="font-normal cursor-pointer"
+              >
                 Track inventory for this product
               </Label>
             </div>

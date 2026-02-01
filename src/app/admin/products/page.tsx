@@ -6,7 +6,9 @@ import { ProductsList } from "./products-list";
 import { ProductsBulkActions } from "./bulk-actions";
 import db from "@/db/index";
 import { products } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
+
+const INITIAL_PRODUCTS_LIMIT = 8;
 
 export default async function AdminProductsPage() {
   const user = await stackServerApp.getUser();
@@ -15,11 +17,17 @@ export default async function AdminProductsPage() {
     redirect("/handler/sign-in");
   }
 
-  // Fetch products from database
+  // Fetch initial products with limit
   const allProducts = await db
     .select()
     .from(products)
-    .orderBy(desc(products.createdAt));
+    .orderBy(desc(products.id))
+    .limit(INITIAL_PRODUCTS_LIMIT);
+
+  // Get total count
+  const [{ count: totalCount }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(products);
 
   // Transform database products to match frontend format
   const transformedProducts = allProducts.map((product) => ({
@@ -70,7 +78,7 @@ export default async function AdminProductsPage() {
         </div>
       </div>
 
-      <ProductsList products={transformedProducts} />
+      <ProductsList products={transformedProducts} totalCount={totalCount} />
     </div>
   );
 }
