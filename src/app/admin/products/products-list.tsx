@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Product } from "@/lib/data/products";
+import { StockBadge } from "@/components/stock-badge";
 import Swal from "sweetalert2";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -181,9 +182,21 @@ export function ProductsList({ products: initialProducts }: ProductsListProps) {
                         <p className="text-sm text-muted-foreground">
                           {product.company} • {product.category}
                         </p>
+                        {product.sku && (
+                          <p className="text-xs text-muted-foreground">
+                            SKU: {product.sku}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
+                      {product.trackInventory && (
+                        <StockBadge
+                          stockQuantity={product.stockQuantity || 0}
+                          lowStockThreshold={product.lowStockThreshold || 10}
+                          trackInventory={product.trackInventory}
+                        />
+                      )}
                       <div className="text-right">
                         <p className="font-semibold">
                           ${product.price.sale || product.price.regular}

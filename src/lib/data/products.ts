@@ -23,6 +23,11 @@ export interface Product {
     text: string;
     backgroundColor?: string;
   };
+  // Inventory Management
+  sku?: string;
+  stockQuantity?: number;
+  lowStockThreshold?: number;
+  trackInventory?: boolean;
 }
 
 // Cricket Bats

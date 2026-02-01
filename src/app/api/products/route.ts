@@ -113,6 +113,11 @@ export async function GET(request: NextRequest) {
         text: product.badgeText,
         backgroundColor: product.badgeBackgroundColor || undefined,
       } : undefined,
+      // Inventory Management
+      sku: product.sku || undefined,
+      stockQuantity: product.stockQuantity || 0,
+      lowStockThreshold: product.lowStockThreshold || 10,
+      trackInventory: product.trackInventory !== false,
     }));
 
     // Calculate pagination metadata
@@ -174,6 +179,11 @@ export async function POST(request: NextRequest) {
         priceCurrency: validatedData.priceCurrency,
         badgeText: validatedData.badgeText || null,
         badgeBackgroundColor: validatedData.badgeBackgroundColor || null,
+        // Inventory Management
+        sku: validatedData.sku || null,
+        stockQuantity: validatedData.stockQuantity || 0,
+        lowStockThreshold: validatedData.lowStockThreshold || 10,
+        trackInventory: validatedData.trackInventory !== false,
       })
       .returning();
 

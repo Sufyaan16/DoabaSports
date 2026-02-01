@@ -16,6 +16,7 @@ import { Product } from "@/lib/data/products";
 import { useCart } from "@/contexts/cart-context";
 import { ShoppingCart } from "lucide-react";
 import Swal from "sweetalert2";
+import { StockBadge } from "@/components/stock-badge";
 
 interface ProductCardProps {
   product: Product;
@@ -25,9 +26,25 @@ export function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
   const [isHovered, setIsHovered] = useState(false);
 
+  const isOutOfStock = product.trackInventory && (product.stockQuantity || 0) === 0;
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    if (isOutOfStock) {
+      Swal.fire({
+        title: "Out of Stock",
+        text: "Sorry, this product is currently unavailable.",
+        icon: "error",
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: "top-end",
+      });
+      return;
+    }
+    
     addToCart(product);
     
     Swal.fire({
@@ -79,6 +96,17 @@ export function ProductCard({ product }: ProductCardProps) {
           <CardDescription className="text-xs font-medium text-muted-foreground">
             {product.company}
           </CardDescription>
+          
+          {/* Stock Badge */}
+          {product.trackInventory && (
+            <StockBadge
+              stockQuantity={product.stockQuantity || 0}
+              lowStockThreshold={product.lowStockThreshold || 10}
+              trackInventory={product.trackInventory}
+              className="w-fit"
+            />
+          )}
+          
           <div className="mt-auto space-y-3">
             <Price
               onSale={product.price.sale != null}
@@ -99,9 +127,10 @@ export function ProductCard({ product }: ProductCardProps) {
               onClick={handleAddToCart}
               className="w-full"
               size="sm"
+              disabled={isOutOfStock}
             >
               <ShoppingCart className="mr-2 h-4 w-4" />
-              Add to Cart
+              {isOutOfStock ? "Out of Stock" : "Add to Cart"}
             </Button>
           </div>
         </CardContent>

@@ -48,6 +48,11 @@ export async function GET(
         text: product[0].badgeText,
         backgroundColor: product[0].badgeBackgroundColor || undefined,
       } : undefined,
+      // Inventory Management
+      sku: product[0].sku || undefined,
+      stockQuantity: product[0].stockQuantity || 0,
+      lowStockThreshold: product[0].lowStockThreshold || 10,
+      trackInventory: product[0].trackInventory !== false,
     };
 
     return NextResponse.json(transformed);
@@ -100,6 +105,11 @@ export async function PUT(
     if (validatedData.priceCurrency !== undefined) updateData.priceCurrency = validatedData.priceCurrency;
     if (validatedData.badgeText !== undefined) updateData.badgeText = validatedData.badgeText || null;
     if (validatedData.badgeBackgroundColor !== undefined) updateData.badgeBackgroundColor = validatedData.badgeBackgroundColor || null;
+    // Inventory Management
+    if (validatedData.sku !== undefined) updateData.sku = validatedData.sku || null;
+    if (validatedData.stockQuantity !== undefined) updateData.stockQuantity = validatedData.stockQuantity;
+    if (validatedData.lowStockThreshold !== undefined) updateData.lowStockThreshold = validatedData.lowStockThreshold;
+    if (validatedData.trackInventory !== undefined) updateData.trackInventory = validatedData.trackInventory;
 
     const updated = await db
       .update(products)

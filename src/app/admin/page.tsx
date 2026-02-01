@@ -4,6 +4,7 @@ import { ChartAreaInteractive } from "@/components/chart-area-interactive";
 import { SectionCards } from "@/components/section-cards";
 import { SiteHeader } from "@/components/site-header";
 import { RecentActivity } from "@/components/recent-activity";
+import { LowStockAlert } from "@/components/low-stock-alert";
 import {
   getDashboardStats,
   getUsersByDateRange,
@@ -40,9 +41,15 @@ export default async function AdminDashboard() {
         </div>
 
         {/* Recent Activity */}
-        <div className="px-4 lg:px-6">
-          <h2 className="text-xl font-bold mb-4">Recent Activity</h2>
-          <RecentActivity signups={recentSignups} orders={recentOrders} />
+        <div className="px-4 lg:px-6 grid gap-6 md:grid-cols-1">
+          <div>
+            <h2 className="text-xl font-bold mb-4">Recent Activity</h2>
+            <RecentActivity signups={recentSignups} orders={recentOrders} />
+          </div>
+          <div className="">
+            <h2 className="text-xl font-bold mb-4">Inventory</h2>
+            <LowStockAlert />
+          </div>
         </div>
       </div>
     </>

@@ -29,6 +29,13 @@ export const products = pgTable("products", {
   priceCurrency: text("price_currency").notNull().default("USD"),
   badgeText: text("badge_text"),
   badgeBackgroundColor: text("badge_background_color"),
+  
+  // Inventory Management
+  sku: text("sku").unique(), // Stock Keeping Unit
+  stockQuantity: integer("stock_quantity").notNull().default(0),
+  lowStockThreshold: integer("low_stock_threshold").notNull().default(10),
+  trackInventory: boolean("track_inventory").notNull().default(true),
+  
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
 });

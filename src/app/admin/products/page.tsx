@@ -45,6 +45,11 @@ export default async function AdminProductsPage() {
       text: product.badgeText,
       backgroundColor: product.badgeBackgroundColor || undefined,
     } : undefined,
+    // Inventory Management
+    sku: product.sku || undefined,
+    stockQuantity: product.stockQuantity || 0,
+    lowStockThreshold: product.lowStockThreshold || 10,
+    trackInventory: product.trackInventory !== false,
   }));
 
   return (

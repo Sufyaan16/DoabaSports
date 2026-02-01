@@ -48,6 +48,21 @@ const baseProductSchema = z.object({
     .regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format (use hex #RRGGBB)")
     .optional()
     .nullable(),
+  
+  // Inventory Management
+  sku: z.string()
+    .max(100, "SKU must be 100 characters or less")
+    .optional()
+    .nullable(),
+  stockQuantity: z.coerce.number()
+    .int("Stock quantity must be an integer")
+    .min(0, "Stock quantity cannot be negative")
+    .default(0),
+  lowStockThreshold: z.coerce.number()
+    .int("Low stock threshold must be an integer")
+    .min(0, "Low stock threshold cannot be negative")
+    .default(10),
+  trackInventory: z.boolean().default(true),
 });
 
 // Create product schema (all fields required except optional ones)

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/db/index";
-import { orders } from "@/db/schema";
+import { orders, products } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createOrderSchema } from "@/lib/validations/order";
@@ -44,6 +44,34 @@ export async function POST(request: Request) {
 
     const validatedData = validationResult.data;
 
+    // Check stock availability for all items
+    for (const item of validatedData.items) {
+      if (item.productId) {
+        const [product] = await db
+          .select()
+          .from(products)
+          .where(eq(products.id, item.productId))
+          .limit(1);
+
+        if (product && product.trackInventory) {
+          const currentStock = product.stockQuantity || 0;
+          if (currentStock < item.quantity) {
+            return NextResponse.json(
+              {
+                error: "Insufficient stock",
+                details: {
+                  productName: item.productName,
+                  requested: item.quantity,
+                  available: currentStock,
+                },
+              },
+              { status: 400 }
+            );
+          }
+        }
+      }
+    }
+
     // Check for order number uniqueness
     const existingOrder = await db
       .select()
@@ -72,6 +100,25 @@ export async function POST(request: Request) {
           total: validatedData.total.toString(),
         })
         .returning();
+
+      // Deduct stock for each item
+      for (const item of validatedData.items) {
+        if (item.productId) {
+          const [product] = await db
+            .select()
+            .from(products)
+            .where(eq(products.id, item.productId))
+            .limit(1);
+
+          if (product && product.trackInventory) {
+            const newStockQuantity = (product.stockQuantity || 0) - item.quantity;
+            await db
+              .update(products)
+              .set({ stockQuantity: Math.max(0, newStockQuantity) })
+              .where(eq(products.id, item.productId));
+          }
+        }
+      }
 
       // Send order confirmation email
       try {

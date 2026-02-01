@@ -71,6 +71,11 @@ export function NewProductForm() {
         imageHoverAlt: imageHoverPreview ? `${formData.get("name")} - Alternate View` : null,
         badgeText: formData.get("badgeText") as string || null,
         badgeBackgroundColor: formData.get("badgeColor") as string || null,
+        // Inventory Management
+        sku: formData.get("sku") as string || null,
+        stockQuantity: formData.get("stockQuantity") ? parseInt(formData.get("stockQuantity") as string) : 0,
+        lowStockThreshold: formData.get("lowStockThreshold") ? parseInt(formData.get("lowStockThreshold") as string) : 10,
+        trackInventory: formData.get("trackInventory") === "on",
       };
 
       // Send to API
@@ -278,6 +283,71 @@ export function NewProductForm() {
                   />
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Inventory Management Section */}
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="text-lg font-semibold">Inventory Management</h3>
+            
+            {/* SKU */}
+            <div className="space-y-2">
+              <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
+              <Input
+                id="sku"
+                name="sku"
+                placeholder="e.g., BAT-ENG-001"
+              />
+              <p className="text-sm text-muted-foreground">
+                Unique identifier for inventory tracking
+              </p>
+            </div>
+
+            {/* Stock Quantity and Low Stock Threshold */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="stockQuantity">
+                  Stock Quantity <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="stockQuantity"
+                  name="stockQuantity"
+                  type="number"
+                  min="0"
+                  defaultValue="0"
+                  required
+                />
+                <p className="text-sm text-muted-foreground">
+                  Current available stock
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lowStockThreshold">Low Stock Alert</Label>
+                <Input
+                  id="lowStockThreshold"
+                  name="lowStockThreshold"
+                  type="number"
+                  min="0"
+                  defaultValue="10"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Alert when stock falls below this
+                </p>
+              </div>
+            </div>
+
+            {/* Track Inventory Checkbox */}
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="trackInventory"
+                name="trackInventory"
+                defaultChecked
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="trackInventory" className="font-normal">
+                Track inventory for this product
+              </Label>
             </div>
           </div>
 

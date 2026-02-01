@@ -77,6 +77,11 @@ export function EditProductForm({ product }: EditProductFormProps) {
         imageHoverAlt: imageHoverPreview ? `${formData.get("name")} - Alternate View` : null,
         badgeText: formData.get("badgeText") as string || null,
         badgeBackgroundColor: formData.get("badgeColor") as string || null,
+        // Inventory Management
+        sku: (formData.get("sku") as string) || null,
+        stockQuantity: formData.get("stockQuantity") ? parseInt(formData.get("stockQuantity") as string) : 0,
+        lowStockThreshold: formData.get("lowStockThreshold") ? parseInt(formData.get("lowStockThreshold") as string) : 10,
+        trackInventory: formData.get("trackInventory") === "on",
       };
 
       // Send to API
@@ -274,6 +279,75 @@ export function EditProductForm({ product }: EditProductFormProps) {
                   />
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Inventory Management Section */}
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="text-lg font-semibold">Inventory Management</h3>
+            
+            {/* SKU */}
+            <div className="space-y-2">
+              <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
+              <Input
+                id="sku"
+                name="sku"
+                placeholder="e.g., BAT-001-BLU"
+                defaultValue={product.sku || ""}
+                maxLength={100}
+              />
+              <p className="text-sm text-muted-foreground">
+                Unique identifier for this product (optional)
+              </p>
+            </div>
+
+            {/* Stock Quantity */}
+            <div className="space-y-2">
+              <Label htmlFor="stockQuantity">
+                Stock Quantity <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="stockQuantity"
+                name="stockQuantity"
+                type="number"
+                min="0"
+                placeholder="0"
+                defaultValue={product.stockQuantity || 0}
+                required
+              />
+              <p className="text-sm text-muted-foreground">
+                Current number of units in stock
+              </p>
+            </div>
+
+            {/* Low Stock Threshold */}
+            <div className="space-y-2">
+              <Label htmlFor="lowStockThreshold">Low Stock Threshold</Label>
+              <Input
+                id="lowStockThreshold"
+                name="lowStockThreshold"
+                type="number"
+                min="0"
+                placeholder="10"
+                defaultValue={product.lowStockThreshold || 10}
+              />
+              <p className="text-sm text-muted-foreground">
+                Get notified when stock falls below this number
+              </p>
+            </div>
+
+            {/* Track Inventory Checkbox */}
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="trackInventory"
+                name="trackInventory"
+                defaultChecked={product.trackInventory !== false}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="trackInventory" className="font-normal cursor-pointer">
+                Track inventory for this product
+              </Label>
             </div>
           </div>
 
