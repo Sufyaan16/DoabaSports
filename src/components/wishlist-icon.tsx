@@ -12,37 +12,76 @@ export function WishlistIcon() {
   const [wishlistCount, setWishlistCount] = useState(0);
 
   useEffect(() => {
-    if (user) {
-      fetchWishlistCount();
-    } else {
+    if (!user) {
       setWishlistCount(0);
+      return;
     }
-  }, [user]);
 
-  const fetchWishlistCount = async () => {
-    try {
-      const response = await fetch("/api/wishlist");
-      const data = await response.json();
+    const controller = new AbortController();
 
-      if (data.success) {
-        setWishlistCount(data.data.length);
+    const fetchWishlistCount = async () => {
+      try {
+        const response = await fetch("/api/wishlist", {
+          signal: controller.signal,
+        });
+        
+        if (!response.ok) {
+          console.error("Failed to fetch wishlist:", response.status);
+          return;
+        }
+        
+        const data = await response.json();
+
+        if (!controller.signal.aborted && data.success) {
+          setWishlistCount(data.data.length);
+        }
+      } catch (error: any) {
+        if (error.name !== "AbortError") {
+          console.error("Error fetching wishlist count:", error);
+        }
       }
-    } catch (error) {
-      console.error("Error fetching wishlist count:", error);
-    }
-  };
+    };
+
+    fetchWishlistCount();
+
+    return () => {
+      controller.abort();
+    };
+  }, [user]);
 
   // Listen for custom events to update count
   useEffect(() => {
-    const handleWishlistUpdate = () => {
-      if (user) {
-        fetchWishlistCount();
+    if (!user) return;
+
+    const controller = new AbortController();
+
+    const handleWishlistUpdate = async () => {
+      try {
+        const response = await fetch("/api/wishlist", {
+          signal: controller.signal,
+        });
+        
+        if (!response.ok) {
+          console.error("Failed to fetch wishlist:", response.status);
+          return;
+        }
+        
+        const data = await response.json();
+
+        if (!controller.signal.aborted && data.success) {
+          setWishlistCount(data.data.length);
+        }
+      } catch (error: any) {
+        if (error.name !== "AbortError") {
+          console.error("Error fetching wishlist count:", error);
+        }
       }
     };
 
     window.addEventListener("wishlist-updated", handleWishlistUpdate);
 
     return () => {
+      controller.abort();
       window.removeEventListener("wishlist-updated", handleWishlistUpdate);
     };
   }, [user]);

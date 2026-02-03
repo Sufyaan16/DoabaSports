@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { Product } from "@/lib/data/products";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
-import { Heart, Loader2, ShoppingCart } from "lucide-react";
+import { Heart, ShoppingCart } from "lucide-react";
 import { useUser } from "@stackframe/stack";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/cart-context";
 import Swal from "sweetalert2";
+import { WishlistLoadingSkeleton } from "./wishlist-loading-skeleton";
 
 interface WishlistItem {
   id: number;
@@ -41,6 +42,13 @@ export function WishlistPageClient() {
 
       if (data.success) {
         setWishlistItems(data.data);
+      } else {
+        Swal.fire({
+          title: "Error",
+          text: data.error || "Failed to load wishlist",
+          icon: "error",
+          confirmButtonText: "OK",
+        });
       }
     } catch (error) {
       console.error("Error fetching wishlist:", error);
@@ -54,8 +62,7 @@ export function WishlistPageClient() {
       setIsLoading(false);
     }
   };
-
-  const handleRemoveFromWishlist = async (wishlistId: number) => {
+  const handleRemoveFromWishlist = async (wishlistId: number, options?: { suppressToast?: boolean }) => {
     try {
       const response = await fetch(`/api/wishlist/${wishlistId}`, {
         method: "DELETE",
@@ -67,24 +74,31 @@ export function WishlistPageClient() {
         );
         // Dispatch custom event to update wishlist count
         window.dispatchEvent(new Event("wishlist-updated"));
-        Swal.fire({
-          title: "Removed!",
-          text: "Product removed from wishlist",
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-          toast: true,
-          position: "top-end",
-        });
+        if (!options?.suppressToast) {
+          Swal.fire({
+            title: "Removed!",
+            text: "Product removed from wishlist",
+            icon: "success",
+            timer: 1500,
+            showConfirmButton: false,
+            toast: true,
+            position: "top-end",
+          });
+        }
+        return true;
       }
+      return false;
     } catch (error) {
       console.error("Error removing from wishlist:", error);
-      Swal.fire({
-        title: "Error",
-        text: "Failed to remove from wishlist",
-        icon: "error",
-        confirmButtonText: "OK",
-      });
+      if (!options?.suppressToast) {
+        Swal.fire({
+          title: "Error",
+          text: "Failed to remove from wishlist",
+          icon: "error",
+          confirmButtonText: "OK",
+        });
+      }
+      return false;
     }
   };
 
@@ -106,26 +120,35 @@ export function WishlistPageClient() {
       return;
     }
 
-    addToCart(item.product);
-    await handleRemoveFromWishlist(item.id);
-
-    Swal.fire({
-      title: "Moved to Cart!",
-      text: `${item.product.name} has been added to your cart.`,
-      icon: "success",
-      timer: 1500,
-      showConfirmButton: false,
-      toast: true,
-      position: "top-end",
-    });
+    // Remove from wishlist first (silently)
+    const removed = await handleRemoveFromWishlist(item.id, { suppressToast: true });
+    
+    if (removed) {
+      // Only add to cart if removal succeeded
+      addToCart(item.product);
+      Swal.fire({
+        title: "Moved to Cart!",
+        text: `${item.product.name} has been added to your cart.`,
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        position: "top-end",
+      });
+    } else {
+      Swal.fire({
+        title: "Error",
+        text: "Failed to move item to cart",
+        icon: "error",
+        confirmButtonText: "OK",
+        toast: true,
+        position: "top-end",
+      });
+    }
   };
 
   if (isLoading) {
-    return (
-      <div className="container py-16 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <WishlistLoadingSkeleton />;
   }
 
   if (wishlistItems.length === 0) {

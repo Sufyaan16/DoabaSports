@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import { WishlistPageClient } from "./wishlist-page-client";
+import { WishlistLoadingSkeleton } from "./wishlist-loading-skeleton";
 
 export default function WishlistPage() {
   return (
-    <Suspense fallback={<div className="container py-8">Loading wishlist...</div>}>
+    <Suspense fallback={<WishlistLoadingSkeleton />}>
       <WishlistPageClient />
     </Suspense>
   );

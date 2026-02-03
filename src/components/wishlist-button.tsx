@@ -119,8 +119,23 @@ export function WishlistButton({
           setWishlistId(data.data.id);
           window.dispatchEvent(new Event("wishlist-updated"));
         } else if (response.status === 409) {
-          // Already in wishlist - keep optimistic state
+          // Already in wishlist - keep optimistic state and fetch the existing id
           setIsInWishlist(true);
+          // If server returned the existing item, use it
+          if (data.data?.id) {
+            setWishlistId(data.data.id);
+          } else {
+            // Otherwise fetch the wishlist status to get the id
+            try {
+              const checkResponse = await fetch(`/api/wishlist/check/${productId}`);
+              const checkData = await checkResponse.json();
+              if (checkData.success && checkData.wishlistId) {
+                setWishlistId(checkData.wishlistId);
+              }
+            } catch (e) {
+              console.error("Error fetching wishlist id:", e);
+            }
+          }
         } else {
           // Revert on error
           setIsInWishlist(previousIsInWishlist);

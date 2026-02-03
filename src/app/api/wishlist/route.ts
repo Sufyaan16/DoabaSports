@@ -51,8 +51,8 @@ export async function GET(req: NextRequest) {
           } : undefined,
           description: item.product.description,
           price: {
-            regular: parseFloat(item.product.priceRegular),
-            sale: item.product.priceSale ? parseFloat(item.product.priceSale) : undefined,
+            regular: item.product.priceRegular && !isNaN(parseFloat(item.product.priceRegular)) ? parseFloat(item.product.priceRegular) : 0,
+            sale: item.product.priceSale && !isNaN(parseFloat(item.product.priceSale)) ? parseFloat(item.product.priceSale) : undefined,
             currency: item.product.priceCurrency,
           },
           badge: item.product.badgeText ? {
@@ -88,7 +88,17 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = user.id;
-    const body = await req.json();
+    
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: "Malformed JSON in request body" },
+        { status: 400 }
+      );
+    }
+    
     const { productId, notes } = body;
 
     if (!productId) {
@@ -129,20 +139,40 @@ export async function POST(req: NextRequest) {
     }
 
     // Add to wishlist
-    const [newWishlistItem] = await db
-      .insert(wishlists)
-      .values({
-        userId,
-        productId,
-        notes: notes || null,
-      })
-      .returning();
+    try {
+      const [newWishlistItem] = await db
+        .insert(wishlists)
+        .values({
+          userId,
+          productId,
+          notes: notes || null,
+        })
+        .returning();
 
-    return NextResponse.json({
-      success: true,
-      message: "Added to wishlist",
-      data: newWishlistItem,
-    });
+      return NextResponse.json({
+        success: true,
+        message: "Added to wishlist",
+        data: newWishlistItem,
+      });
+    } catch (insertError: any) {
+      // Check for unique constraint violation
+      if (insertError.code === '23505' || insertError.constraint?.includes('unique')) {
+        // Fetch and return the existing wishlist item
+        const [existingItem] = await db
+          .select()
+          .from(wishlists)
+          .where(
+            and(eq(wishlists.userId, userId), eq(wishlists.productId, productId))
+          )
+          .limit(1);
+        
+        return NextResponse.json(
+          { error: "Product already in wishlist", data: existingItem },
+          { status: 409 }
+        );
+      }
+      throw insertError;
+    }
   } catch (error) {
     console.error("Error adding to wishlist:", error);
     return NextResponse.json(
