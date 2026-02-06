@@ -11,6 +11,7 @@ import {
   handleUnexpectedError,
   ErrorCode,
 } from "@/lib/errors";
+import { getOrSet, CACHE_TTL, deleteFromCache, invalidateNamespace } from "@/lib/cache";
 
 // GET single product
 export async function GET(
@@ -19,11 +20,22 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const product = await db
-      .select()
-      .from(products)
-      .where(eq(products.id, parseInt(id)))
-      .limit(1);
+    
+    // Try to get from cache
+    const product = await getOrSet(
+      "products",
+      `detail:${id}`,
+      async () => {
+        const result = await db
+          .select()
+          .from(products)
+          .where(eq(products.id, parseInt(id)))
+          .limit(1);
+        
+        return result;
+      },
+      CACHE_TTL.PRODUCT_DETAIL
+    );
 
     if (product.length === 0) {
       return createErrorResponse({
@@ -128,6 +140,10 @@ export async function PUT(
       });
     }
 
+    // Invalidate cache for this product and list
+    await deleteFromCache("products", `detail:${id}`);
+    await invalidateNamespace("products");
+
     return NextResponse.json(updated[0]);
   } catch (error) {
     if (error && typeof error === "object" && "code" in error) {
@@ -160,6 +176,10 @@ export async function DELETE(
         code: ErrorCode.PRODUCT_NOT_FOUND,
       });
     }
+
+    // Invalidate cache for this product and list
+    await deleteFromCache("products", `detail:${id}`);
+    await invalidateNamespace("products");
 
     return NextResponse.json({ message: "Product deleted successfully" });
   } catch (error) {

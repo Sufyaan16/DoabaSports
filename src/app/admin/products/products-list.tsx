@@ -69,10 +69,12 @@ export function ProductsList({ products: initialProducts, totalCount: initialTot
       const response = await fetch(`/api/products?${params.toString()}`);
       const data = await response.json();
       
-      if (response.ok) {
+      if (response.ok && data.products && data.pagination) {
         setProducts(data.products);
         setTotalCount(data.pagination.totalCount);
         setCurrentPage(page);
+      } else {
+        console.error("Invalid API response:", { status: response.status, data });
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);

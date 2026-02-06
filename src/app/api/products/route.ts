@@ -14,6 +14,7 @@ import {
   handleUnexpectedError,
   ErrorCode,
 } from "@/lib/errors";
+import { getOrSet, CACHE_TTL, invalidateNamespace } from "@/lib/cache";
 
 // GET all products (with pagination and filters)
 export async function GET(request: NextRequest) {
@@ -44,111 +45,124 @@ export async function GET(request: NextRequest) {
 
     const { category, search, page, limit, sortBy } = queryValidation.data;
     
-    // Calculate offset
-    const offset = (page - 1) * limit;
-
-    // Build where conditions
-    const conditions: SQL[] = [];
+    // Create cache key based on query parameters
+    const cacheKey = `list:${category || 'all'}:${search || 'none'}:${page}:${limit}:${sortBy}`;
     
-    if (category) {
-      conditions.push(eq(products.category, category));
-    }
-    
-    if (search) {
-      conditions.push(
-        or(
-          like(products.name, `%${search}%`),
-          like(products.company, `%${search}%`),
-          like(products.description, `%${search}%`)
-        )!
-      );
-    }
+    // Try to get from cache
+    const cachedResult = await getOrSet(
+      "products",
+      cacheKey,
+      async () => {
+        // Calculate offset
+        const offset = (page - 1) * limit;
 
-    // Build order by clause based on sortBy
-    let orderByClause;
-    switch (sortBy) {
-      case "price-low":
-        orderByClause = sql`CAST(${products.priceRegular} AS DECIMAL) ASC`;
-        break;
-      case "price-high":
-        orderByClause = sql`CAST(${products.priceRegular} AS DECIMAL) DESC`;
-        break;
-      case "name-asc":
-        orderByClause = sql`${products.name} ASC`;
-        break;
-      case "name-desc":
-        orderByClause = sql`${products.name} DESC`;
-        break;
-      case "newest":
-      default:
-        orderByClause = desc(products.id);
-        break;
-    }
+        // Build where conditions
+        const conditions: SQL[] = [];
+        
+        if (category) {
+          conditions.push(eq(products.category, category));
+        }
+        
+        if (search) {
+          conditions.push(
+            or(
+              like(products.name, `%${search}%`),
+              like(products.company, `%${search}%`),
+              like(products.description, `%${search}%`)
+            )!
+          );
+        }
 
-    // Get total count for pagination
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    
-    const [{ count: totalCount }] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(products)
-      .where(whereClause);
+        // Build order by clause based on sortBy
+        let orderByClause;
+        switch (sortBy) {
+          case "price-low":
+            orderByClause = sql`CAST(${products.priceRegular} AS DECIMAL) ASC`;
+            break;
+          case "price-high":
+            orderByClause = sql`CAST(${products.priceRegular} AS DECIMAL) DESC`;
+            break;
+          case "name-asc":
+            orderByClause = sql`${products.name} ASC`;
+            break;
+          case "name-desc":
+            orderByClause = sql`${products.name} DESC`;
+            break;
+          case "newest":
+          default:
+            orderByClause = desc(products.id);
+            break;
+        }
 
-    // Get paginated products
-    const allProducts = await db
-      .select()
-      .from(products)
-      .where(whereClause)
-      .orderBy(orderByClause)
-      .limit(limit)
-      .offset(offset);
+        // Get total count for pagination
+        const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+        
+        const [{ count: totalCount }] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(products)
+          .where(whereClause);
 
-    // Transform database products to match frontend format
-    const transformedProducts = allProducts.map((product) => ({
-      id: product.id,
-      name: product.name,
-      company: product.company,
-      category: product.category,
-      image: {
-        src: product.imageSrc,
-        alt: product.imageAlt,
+        // Get paginated products
+        const allProducts = await db
+          .select()
+          .from(products)
+          .where(whereClause)
+          .orderBy(orderByClause)
+          .limit(limit)
+          .offset(offset);
+
+        // Transform database products to match frontend format
+        const transformedProducts = allProducts.map((product) => ({
+          id: product.id,
+          name: product.name,
+          company: product.company,
+          category: product.category,
+          image: {
+            src: product.imageSrc,
+            alt: product.imageAlt,
+          },
+          imageHover: product.imageHoverSrc ? {
+            src: product.imageHoverSrc,
+            alt: product.imageHoverAlt || `${product.name} - Alternate View`,
+          } : undefined,
+          description: product.description,
+          price: {
+            regular: parseFloat(product.priceRegular),
+            sale: product.priceSale ? parseFloat(product.priceSale) : undefined,
+            currency: product.priceCurrency,
+          },
+          badge: product.badgeText ? {
+            text: product.badgeText,
+            backgroundColor: product.badgeBackgroundColor || undefined,
+          } : undefined,
+          // Inventory Management
+          sku: product.sku || undefined,
+          stockQuantity: product.stockQuantity || 0,
+          lowStockThreshold: product.lowStockThreshold || 10,
+          trackInventory: product.trackInventory !== false,
+        }));
+
+        // Calculate pagination metadata
+        const totalPages = Math.ceil(totalCount / limit);
+        const hasNextPage = page < totalPages;
+        const hasPrevPage = page > 1;
+
+        return {
+          products: transformedProducts,
+          pagination: {
+            page,
+            limit,
+            totalCount,
+            totalPages,
+            hasNextPage,
+            hasPrevPage,
+          }
+        };
       },
-      imageHover: product.imageHoverSrc ? {
-        src: product.imageHoverSrc,
-        alt: product.imageHoverAlt || `${product.name} - Alternate View`,
-      } : undefined,
-      description: product.description,
-      price: {
-        regular: parseFloat(product.priceRegular),
-        sale: product.priceSale ? parseFloat(product.priceSale) : undefined,
-        currency: product.priceCurrency,
-      },
-      badge: product.badgeText ? {
-        text: product.badgeText,
-        backgroundColor: product.badgeBackgroundColor || undefined,
-      } : undefined,
-      // Inventory Management
-      sku: product.sku || undefined,
-      stockQuantity: product.stockQuantity || 0,
-      lowStockThreshold: product.lowStockThreshold || 10,
-      trackInventory: product.trackInventory !== false,
-    }));
+      CACHE_TTL.PRODUCTS
+    );
 
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(totalCount / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
-
-    return NextResponse.json({
-      products: transformedProducts,
-      pagination: {
-        page,
-        limit,
-        totalCount,
-        totalPages,
-        hasNextPage,
-        hasPrevPage,
-      }
-    });
+    return NextResponse.json(cachedResult);
   } catch (error) {
     return handleUnexpectedError(error, "GET /api/products");
   }
@@ -205,6 +219,9 @@ export async function POST(request: NextRequest) {
         trackInventory: validatedData.trackInventory !== false,
       })
       .returning();
+
+    // Invalidate products cache
+    await invalidateNamespace("products");
 
     return NextResponse.json(newProduct[0], { status: 201 });
   } catch (error) {

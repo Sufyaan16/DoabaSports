@@ -24,10 +24,12 @@ export function LowStockAlert() {
 
   const fetchLowStockProducts = async () => {
     try {
-      const response = await fetch("/api/products");
+      const response = await fetch("/api/products?limit=100");
       if (response.ok) {
         const data = await response.json();
-        const lowStock = data.products.filter(
+        // Handle paginated response
+        const productsArray = data.products || [];
+        const lowStock = productsArray.filter(
           (product: any) =>
             product.trackInventory &&
             product.stockQuantity <= product.lowStockThreshold

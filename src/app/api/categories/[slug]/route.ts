@@ -5,6 +5,14 @@ import { eq } from "drizzle-orm";
 import { updateCategorySchema } from "@/lib/validations/category";
 import { ZodError } from "zod";
 import { requireAdmin } from "@/lib/auth-helpers";
+import { getOrSet, CACHE_TTL, deleteFromCache, invalidateNamespace } from "@/lib/cache";
+import {
+  createErrorResponse,
+  handleZodError,
+  handleDatabaseError,
+  handleUnexpectedError,
+  ErrorCode,
+} from "@/lib/errors";
 
 // GET single category
 export async function GET(
@@ -13,36 +21,45 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    const category = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.slug, slug))
-      .limit(1);
+    
+    const cachedResult = await getOrSet(
+      "categories",
+      `detail:${slug}`,
+      async () => {
+        const category = await db
+          .select()
+          .from(categories)
+          .where(eq(categories.slug, slug))
+          .limit(1);
 
-    if (category.length === 0) {
-      return NextResponse.json(
-        { error: "Category not found" },
-        { status: 404 }
-      );
+        if (category.length === 0) {
+          return null;
+        }
+
+        // Transform to frontend format
+        return {
+          slug: category[0].slug,
+          name: category[0].name,
+          description: category[0].description,
+          longDescription: category[0].longDescription,
+          image: category[0].image,
+          imageHover: category[0].imageHover || undefined,
+        };
+      },
+      CACHE_TTL.CATEGORIES
+    );
+
+    if (!cachedResult) {
+      return createErrorResponse({
+        code: ErrorCode.CATEGORY_NOT_FOUND,
+        message: "Category not found",
+        details: { slug },
+      });
     }
 
-    // Transform to frontend format
-    const transformed = {
-      slug: category[0].slug,
-      name: category[0].name,
-      description: category[0].description,
-      longDescription: category[0].longDescription,
-      image: category[0].image,
-      imageHover: category[0].imageHover || undefined,
-    };
-
-    return NextResponse.json(transformed);
+    return NextResponse.json(cachedResult);
   } catch (error) {
-    console.error("Error fetching category:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch category" },
-      { status: 500 }
-    );
+    return handleUnexpectedError(error, "GET /api/categories/[slug]");
   }
 }
 
@@ -65,11 +82,7 @@ export async function PUT(
     const validated = updateCategorySchema.safeParse(body);
     
     if (!validated.success) {
-      const errors = validated.error.flatten().fieldErrors;
-      return NextResponse.json(
-        { error: "Validation failed", details: errors },
-        { status: 400 }
-      );
+      return handleZodError(validated.error);
     }
 
     const validatedData = validated.data;
@@ -93,25 +106,26 @@ export async function PUT(
       .returning();
 
     if (updated.length === 0) {
-      return NextResponse.json(
-        { error: "Category not found" },
-        { status: 404 }
-      );
+      return createErrorResponse({
+        code: ErrorCode.CATEGORY_NOT_FOUND,
+        message: "Category not found",
+        details: { slug },
+      });
     }
+
+    // Invalidate category cache
+    await deleteFromCache("categories", `detail:${slug}`);
+    await invalidateNamespace("categories");
 
     return NextResponse.json(updated[0]);
   } catch (error) {
     if (error instanceof ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.flatten().fieldErrors },
-        { status: 400 }
-      );
+      return handleZodError(error);
     }
-    console.error("Error updating category:", error);
-    return NextResponse.json(
-      { error: "Failed to update category" },
-      { status: 500 }
-    );
+    if (error && typeof error === "object" && "code" in error) {
+      return handleDatabaseError(error, "PUT /api/categories/[slug]");
+    }
+    return handleUnexpectedError(error, "PUT /api/categories/[slug]");
   }
 }
 
@@ -134,18 +148,22 @@ export async function DELETE(
       .returning();
 
     if (deleted.length === 0) {
-      return NextResponse.json(
-        { error: "Category not found" },
-        { status: 404 }
-      );
+      return createErrorResponse({
+        code: ErrorCode.CATEGORY_NOT_FOUND,
+        message: "Category not found",
+        details: { slug },
+      });
     }
+
+    // Invalidate category cache
+    await deleteFromCache("categories", `detail:${slug}`);
+    await invalidateNamespace("categories");
 
     return NextResponse.json({ message: "Category deleted successfully" });
   } catch (error) {
-    console.error("Error deleting category:", error);
-    return NextResponse.json(
-      { error: "Failed to delete category" },
-      { status: 500 }
-    );
+    if (error && typeof error === "object" && "code" in error) {
+      return handleDatabaseError(error, "DELETE /api/categories/[slug]");
+    }
+    return handleUnexpectedError(error, "DELETE /api/categories/[slug]");
   }
 }

@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import db from "@/db/index";
 import { orders, products } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createOrderSchema } from "@/lib/validations/order";
 import { resend } from "@/lib/resend";
@@ -17,8 +17,8 @@ import {
   ErrorCode,
 } from "@/lib/errors";
 
-// GET all orders
-export async function GET(request: Request) {
+// GET all orders (with pagination)
+export async function GET(request: NextRequest) {
   // Protect route - admin only (viewing all orders)
   const authResult = await requireAdmin();
   if (!authResult.success) {
@@ -34,12 +34,52 @@ export async function GET(request: Request) {
   }
 
   try {
-    const allOrders = await db
-      .select()
-      .from(orders)
-      .orderBy(desc(orders.createdAt));
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const status = searchParams.get("status");
+    
+    // Validate pagination params
+    if (page < 1 || limit < 1 || limit > 100) {
+      return createErrorResponse({
+        code: ErrorCode.INVALID_QUERY_PARAMS,
+        message: "Invalid pagination parameters",
+        details: { page: "Must be >= 1", limit: "Must be 1-100" },
+      });
+    }
 
-    return NextResponse.json(allOrders);
+    const offset = (page - 1) * limit;
+
+    // Build query with optional status filter
+    const baseQuery = db.select().from(orders);
+    const baseCountQuery = db.select({ count: sql<number>`count(*)` }).from(orders);
+
+    // Get total count
+    const [{ count: totalCount }] = await (status 
+      ? baseCountQuery.where(eq(orders.status, status as any))
+      : baseCountQuery);
+
+    // Get paginated orders
+    const allOrders = await (status
+      ? baseQuery.where(eq(orders.status, status as any))
+      : baseQuery)
+      .orderBy(desc(orders.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return NextResponse.json({
+      orders: allOrders,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    });
   } catch (error) {
     return handleUnexpectedError(error, "GET /api/orders");
   }
