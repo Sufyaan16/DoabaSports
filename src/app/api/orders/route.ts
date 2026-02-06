@@ -6,9 +6,16 @@ import { z } from "zod";
 import { createOrderSchema } from "@/lib/validations/order";
 import { resend } from "@/lib/resend";
 import OrderConfirmationEmail from "@/emails/order-confirmation";
+import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
 
 // GET all orders
 export async function GET() {
+  // Protect route - admin only (viewing all orders)
+  const authResult = await requireAdmin();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const allOrders = await db
       .select()
@@ -27,6 +34,12 @@ export async function GET() {
 
 // POST new order
 export async function POST(request: Request) {
+  // Protect route - authenticated users can create orders
+  const authResult = await requireAuth();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const body = await request.json();
 

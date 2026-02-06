@@ -10,26 +10,27 @@ import {
   MAX_CART_ITEMS,
   MAX_ITEM_QUANTITY,
 } from "@/lib/validations/cart";
+import { requireAuth } from "@/lib/auth-helpers";
 // GET /api/cart - Get user's cart
 export async function GET() {
-  try {
-    const user = await stackServerApp.getUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Protect route - authenticated users only
+  const authResult = await requireAuth();
+  if (!authResult.success) {
+    return authResult.error;
+  }
 
+  try {
     const userCart = await db
       .select()
       .from(carts)
-      .where(eq(carts.userId, user.id))
+      .where(eq(carts.userId, authResult.userId))
       .limit(1);
 
     if (userCart.length === 0) {
       // Create empty cart for user
       const [newCart] = await db
         .insert(carts)
-        .values({ userId: user.id, items: [] })
+        .values({ userId: authResult.userId, items: [] })
         .returning();
       
       return NextResponse.json(newCart);
@@ -47,13 +48,13 @@ export async function GET() {
 
 // POST /api/cart - Update entire cart (for merging guest cart)
 export async function POST(request: NextRequest) {
-  try {
-    const user = await stackServerApp.getUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Protect route - authenticated users only
+  const authResult = await requireAuth();
+  if (!authResult.success) {
+    return authResult.error;
+  }
 
+  try {
     const body = await request.json();
     
     // Validate request body
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     const existingCart = await db
       .select()
       .from(carts)
-      .where(eq(carts.userId, user.id))
+      .where(eq(carts.userId, authResult.userId))
       .limit(1);
 
     if (existingCart.length === 0) {
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
       const [newCart] = await db
         .insert(carts)
         .values({
-          userId: user.id,
+          userId: authResult.userId,
           items: items || [],
         })
         .returning();
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
         items: items || [],
         updatedAt: new Date().toISOString(),
       })
-      .where(eq(carts.userId, user.id))
+      .where(eq(carts.userId, authResult.userId))
       .returning();
 
     return NextResponse.json(updatedCart);
@@ -112,13 +113,13 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/cart - Add/update item in cart
 export async function PUT(request: NextRequest) {
-  try {
-    const user = await stackServerApp.getUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Protect route - authenticated users only
+  const authResult = await requireAuth();
+  if (!authResult.success) {
+    return authResult.error;
+  }
 
+  try {
     const { productId, quantity } = await request.json();
 
     // Validate request body
@@ -139,7 +140,7 @@ export async function PUT(request: NextRequest) {
     const existingCart = await db
       .select()
       .from(carts)
-      .where(eq(carts.userId, user.id))
+      .where(eq(carts.userId, authResult.userId))
       .limit(1);
 
     let currentItems = existingCart.length > 0 ? existingCart[0].items : [];
@@ -172,7 +173,7 @@ export async function PUT(request: NextRequest) {
       const [newCart] = await db
         .insert(carts)
         .values({
-          userId: user.id,
+          userId: authResult.userId,
           items: currentItems,
         })
         .returning();
@@ -187,7 +188,7 @@ export async function PUT(request: NextRequest) {
         items: currentItems,
         updatedAt: new Date().toISOString(),
       })
-      .where(eq(carts.userId, user.id))
+      .where(eq(carts.userId, authResult.userId))
       .returning();
 
     return NextResponse.json(updatedCart);
@@ -202,20 +203,20 @@ export async function PUT(request: NextRequest) {
 
 // DELETE /api/cart - Clear cart
 export async function DELETE() {
-  try {
-    const user = await stackServerApp.getUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Protect route - authenticated users only
+  const authResult = await requireAuth();
+  if (!authResult.success) {
+    return authResult.error;
+  }
 
+  try {
     const [updatedCart] = await db
       .update(carts)
       .set({
         items: [],
         updatedAt: new Date().toISOString(),
       })
-      .where(eq(carts.userId, user.id))
+      .where(eq(carts.userId, authResult.userId))
       .returning();
 
     if (!updatedCart) {

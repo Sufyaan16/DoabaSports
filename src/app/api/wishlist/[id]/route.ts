@@ -3,23 +3,22 @@ import db from "@/db";
 import { wishlists } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { stackServerApp } from "@/stack/server";
+import { requireAuth, isOwnerOrAdmin } from "@/lib/auth-helpers";
 
 // DELETE - Remove product from wishlist
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protect route - authenticated users only
+  const authResult = await requireAuth();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
+  const userId = authResult.userId;
+
   try {
-    const user = await stackServerApp.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized. Please sign in." },
-        { status: 401 }
-      );
-    }
-
-    const userId = user.id;
     const { id } = await params;
     const wishlistId = Number.parseInt(id);
 

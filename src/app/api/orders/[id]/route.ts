@@ -4,12 +4,19 @@ import { orders } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { updateOrderSchema } from "@/lib/validations/order";
+import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
 
 // GET single order by ID
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protect route - authenticated users can view their orders
+  const authResult = await requireAuth();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const { id } = await params;
     const order = await db
@@ -37,6 +44,12 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protect route - admin only (updating order status)
+  const authResult = await requireAdmin();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -95,6 +108,12 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protect route - admin only
+  const authResult = await requireAdmin();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const { id } = await params;
     const deletedOrder = await db

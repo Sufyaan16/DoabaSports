@@ -4,6 +4,7 @@ import { products } from "@/db/schema";
 import { desc, eq, sql, like, or, and, SQL } from "drizzle-orm";
 import { createProductSchema, productQuerySchema } from "@/lib/validations/product";
 import { ZodError } from "zod";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 // GET all products (with pagination and filters)
 export async function GET(request: NextRequest) {
@@ -147,6 +148,12 @@ export async function GET(request: NextRequest) {
 
 // POST new product
 export async function POST(request: NextRequest) {
+  // Protect route - admin only
+  const authResult = await requireAdmin();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const body = await request.json();
 

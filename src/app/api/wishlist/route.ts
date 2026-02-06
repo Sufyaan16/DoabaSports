@@ -3,21 +3,19 @@ import db from "@/db";
 import { wishlists, products } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { stackServerApp } from "@/stack/server";
+import { requireAuth } from "@/lib/auth-helpers";
 
 // GET - Fetch user's wishlist
 export async function GET(req: NextRequest) {
+  // Protect route - authenticated users only
+  const authResult = await requireAuth();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
+  const userId = authResult.userId;
+
   try {
-    const user = await stackServerApp.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized. Please sign in." },
-        { status: 401 }
-      );
-    }
-
-    const userId = user.id;
-
     // Fetch wishlist with product details
     const userWishlist = await db
       .select({
@@ -77,18 +75,15 @@ export async function GET(req: NextRequest) {
 
 // POST - Add product to wishlist
 export async function POST(req: NextRequest) {
+  // Protect route - authenticated users only
+  const authResult = await requireAuth();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
+  const userId = authResult.userId;
+
   try {
-    const user = await stackServerApp.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized. Please sign in." },
-        { status: 401 }
-      );
-    }
-
-    const userId = user.id;
-    
     let body;
     try {
       body = await req.json();

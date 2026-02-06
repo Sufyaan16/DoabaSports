@@ -3,6 +3,7 @@ import db from "@/db/index";
 import { products } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { updateProductSchema } from "@/lib/validations/product";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 // GET single product
 export async function GET(
@@ -70,6 +71,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protect route - admin only
+  const authResult = await requireAdmin();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -139,6 +146,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Protect route - admin only
+  const authResult = await requireAdmin();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const { id } = await params;
     const deleted = await db

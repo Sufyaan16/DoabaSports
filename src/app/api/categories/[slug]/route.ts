@@ -4,6 +4,7 @@ import { categories } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { updateCategorySchema } from "@/lib/validations/category";
 import { ZodError } from "zod";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 // GET single category
 export async function GET(
@@ -50,6 +51,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  // Protect route - admin only
+  const authResult = await requireAdmin();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const { slug } = await params;
     const body = await request.json();
@@ -113,6 +120,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  // Protect route - admin only
+  const authResult = await requireAdmin();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const { slug } = await params;
     const deleted = await db

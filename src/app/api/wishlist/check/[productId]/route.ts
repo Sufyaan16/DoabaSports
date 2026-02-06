@@ -3,6 +3,7 @@ import db from "@/db";
 import { wishlists } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { stackServerApp } from "@/stack/server";
+import { requireAuth } from "@/lib/auth-helpers";
 
 // GET - Check if product is in user's wishlist
 export async function GET(

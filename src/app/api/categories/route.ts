@@ -4,6 +4,7 @@ import { categories } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { createCategorySchema } from "@/lib/validations/category";
 import { ZodError } from "zod";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 // GET all categories
 export async function GET() {
@@ -35,6 +36,12 @@ export async function GET() {
 
 // POST new category
 export async function POST(request: NextRequest) {
+  // Protect route - admin only
+  const authResult = await requireAdmin();
+  if (!authResult.success) {
+    return authResult.error;
+  }
+
   try {
     const body = await request.json();
 
