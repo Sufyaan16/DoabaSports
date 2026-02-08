@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/db/index";
 import { orders, products } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth-helpers";
 import { checkRateLimit, getRateLimitIdentifier, getIpAddress } from "@/lib/rate-limit";
 import {
@@ -13,7 +13,7 @@ import {
 
 /**
  * POST /api/orders/[id]/cancel
- * Cancel an order (user can cancel their own pending/processing orders)
+ * Cancel an order (user can cancel their own pending/processing orders, admin can cancel any)
  */
 export async function POST(
   request: NextRequest,
@@ -44,11 +44,11 @@ export async function POST(
       });
     }
 
-    // Get the order
+    // Get the order (exclude soft-deleted)
     const [order] = await db
       .select()
       .from(orders)
-      .where(eq(orders.id, orderId))
+      .where(and(eq(orders.id, orderId), isNull(orders.deletedAt)))
       .limit(1);
 
     if (!order) {
@@ -56,6 +56,21 @@ export async function POST(
         code: ErrorCode.ORDER_NOT_FOUND,
         message: "Order not found",
       });
+    }
+
+    // Ownership check: customers can only cancel their own orders
+    // Admins can cancel any order
+    if (authResult.role !== "admin") {
+      const isOwner =
+        order.userId === authResult.userId ||
+        order.customerEmail === authResult.user?.primaryEmail;
+
+      if (!isOwner) {
+        return createErrorResponse({
+          code: ErrorCode.ORDER_ACCESS_DENIED,
+          message: "You do not have permission to cancel this order",
+        });
+      }
     }
 
     // Check if order can be cancelled

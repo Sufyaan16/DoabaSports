@@ -1,4 +1,4 @@
-import { boolean, decimal, integer, pgTable, serial, text, timestamp, json, unique } from "drizzle-orm/pg-core";
+import { boolean, decimal, integer, pgTable, serial, text, timestamp, json, unique, index } from "drizzle-orm/pg-core";
 
 // Categories Table
 export const categories = pgTable("categories", {
@@ -38,12 +38,15 @@ export const products = pgTable("products", {
   
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
-});
+}, (table) => ({
+  categoryIdx: index("idx_products_category").on(table.category),
+}));
 
 // Orders Table
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
   orderNumber: text("order_number").notNull().unique(),
+  userId: text("user_id"), // StackAuth user ID for ownership tracking
   
   // Customer Information
   customerName: text("customer_name").notNull(),
@@ -88,7 +91,13 @@ export const orders = pgTable("orders", {
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
   shippedAt: timestamp("shipped_at", { mode: "string" }),
   deliveredAt: timestamp("delivered_at", { mode: "string" }),
-});
+  deletedAt: timestamp("deleted_at", { mode: "string" }), // Soft-delete: null = active, set = deleted
+}, (table) => ({
+  userIdIdx: index("idx_orders_user_id").on(table.userId),
+  customerEmailIdx: index("idx_orders_customer_email").on(table.customerEmail),
+  statusIdx: index("idx_orders_status").on(table.status),
+  orderNumberIdx: index("idx_orders_order_number").on(table.orderNumber),
+}));
 
 // Cart Table
 export const carts = pgTable("carts", {

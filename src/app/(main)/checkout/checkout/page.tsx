@@ -77,12 +77,8 @@ export default function CheckoutPage() {
 
     const validated = validationResult.data;
 
-    // Generate order number
-    const orderNumber = `ORD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
-
-    // Prepare order data
+    // Prepare order data (order number generated server-side)
     const orderData = {
-      orderNumber,
       customerName: `${validated.firstName} ${validated.lastName}`,
       customerEmail: validated.email,
       customerPhone: validated.phone || "",

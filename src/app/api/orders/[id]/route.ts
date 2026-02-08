@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import db from "@/db/index";
-import { orders } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { z } from "zod";
+import { orders, products } from "@/db/schema";
+import { eq, and, isNull } from "drizzle-orm";
 import { updateOrderSchema } from "@/lib/validations/order";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  handleZodError,
+  handleUnexpectedError,
+  ErrorCode,
+} from "@/lib/errors";
 
 // GET single order by ID
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // Protect route - authenticated users can view their orders
+  // Protect route - authenticated users can view their own orders
   const authResult = await requireAuth();
   if (!authResult.success) {
     return authResult.error;
@@ -19,27 +25,51 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const order = await db
-      .select()
-      .from(orders)
-      .where(eq(orders.id, Number(id)))
-      .limit(1);
+    const orderId = Number(id);
 
-    if (!order || order.length === 0) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    if (isNaN(orderId)) {
+      return createErrorResponse({
+        code: ErrorCode.INVALID_ORDER_ID,
+        message: "Invalid order ID",
+      });
     }
 
-    return NextResponse.json(order[0]);
+    // Only fetch non-deleted orders
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(and(eq(orders.id, orderId), isNull(orders.deletedAt)))
+      .limit(1);
+
+    if (!order) {
+      return createErrorResponse({
+        code: ErrorCode.ORDER_NOT_FOUND,
+        message: "Order not found",
+      });
+    }
+
+    // Ownership check: customers can only view their own orders
+    // Admins can view any order
+    if (authResult.role !== "admin") {
+      const isOwner =
+        order.userId === authResult.userId ||
+        order.customerEmail === authResult.user?.primaryEmail;
+
+      if (!isOwner) {
+        return createErrorResponse({
+          code: ErrorCode.ORDER_ACCESS_DENIED,
+          message: "You do not have permission to view this order",
+        });
+      }
+    }
+
+    return NextResponse.json(order);
   } catch (error) {
-    console.error("Error fetching order:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch order" },
-      { status: 500 }
-    );
+    return handleUnexpectedError(error, "GET /api/orders/[id]");
   }
 }
 
-// PUT update order (status, tracking, etc.)
+// PUT update order (status, tracking, etc.) - Admin only
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -52,58 +82,51 @@ export async function PUT(
 
   try {
     const { id } = await params;
+    const orderId = Number(id);
+
+    if (isNaN(orderId)) {
+      return createErrorResponse({
+        code: ErrorCode.INVALID_ORDER_ID,
+        message: "Invalid order ID",
+      });
+    }
+
     const body = await request.json();
 
     // Validate request body
     const validationResult = updateOrderSchema.safeParse(body);
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: validationResult.error.flatten().fieldErrors,
-        },
-        { status: 400 }
-      );
+      return handleZodError(validationResult.error);
     }
 
     const validatedData = validationResult.data;
 
+    // Only update non-deleted orders
     const updatedOrder = await db
       .update(orders)
       .set({
         ...validatedData,
         updatedAt: new Date().toISOString(),
       })
-      .where(eq(orders.id, Number(id)))
+      .where(and(eq(orders.id, orderId), isNull(orders.deletedAt)))
       .returning();
 
     if (!updatedOrder || updatedOrder.length === 0) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      return createErrorResponse({
+        code: ErrorCode.ORDER_NOT_FOUND,
+        message: "Order not found",
+      });
     }
 
-    return NextResponse.json(updatedOrder[0]);
+    return createSuccessResponse(updatedOrder[0], {
+      message: "Order updated successfully",
+    });
   } catch (error) {
-    console.error("Error updating order:", error);
-    
-    // Check if it's a Zod error
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: error.flatten().fieldErrors,
-        },
-        { status: 400 }
-      );
-    }
-    
-    return NextResponse.json(
-      { error: "Failed to update order" },
-      { status: 500 }
-    );
+    return handleUnexpectedError(error, "PUT /api/orders/[id]");
   }
 }
 
-// DELETE order
+// DELETE order - Soft delete + restore stock
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -116,21 +139,87 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    const deletedOrder = await db
-      .delete(orders)
-      .where(eq(orders.id, Number(id)))
-      .returning();
+    const orderId = Number(id);
 
-    if (!deletedOrder || deletedOrder.length === 0) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    if (isNaN(orderId)) {
+      return createErrorResponse({
+        code: ErrorCode.INVALID_ORDER_ID,
+        message: "Invalid order ID",
+      });
     }
 
-    return NextResponse.json({ message: "Order deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting order:", error);
-    return NextResponse.json(
-      { error: "Failed to delete order" },
-      { status: 500 }
+    // Get the order first to check if it exists and is not already deleted
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(and(eq(orders.id, orderId), isNull(orders.deletedAt)))
+      .limit(1);
+
+    if (!order) {
+      return createErrorResponse({
+        code: ErrorCode.ORDER_NOT_FOUND,
+        message: "Order not found",
+      });
+    }
+
+    // Prevent deleting delivered + paid orders (financial records)
+    if (order.status === "delivered" && order.paymentStatus === "paid") {
+      return createErrorResponse({
+        code: ErrorCode.ORDER_CANNOT_BE_DELETED,
+        message: "Delivered and paid orders cannot be deleted. Use refund instead.",
+        details: { status: order.status, paymentStatus: order.paymentStatus },
+      });
+    }
+
+    // Restore stock for non-cancelled/non-refunded orders
+    if (!["cancelled", "refunded"].includes(order.status)) {
+      const orderItems = order.items as Array<{
+        productId: number;
+        quantity: number;
+      }>;
+
+      for (const item of orderItems) {
+        const [product] = await db
+          .select()
+          .from(products)
+          .where(eq(products.id, item.productId))
+          .limit(1);
+
+        if (product && product.trackInventory) {
+          await db
+            .update(products)
+            .set({
+              stockQuantity: (product.stockQuantity || 0) + item.quantity,
+              updatedAt: new Date().toISOString(),
+            })
+            .where(eq(products.id, item.productId));
+        }
+      }
+    }
+
+    // Soft-delete: set deletedAt instead of removing from DB
+    const [deletedOrder] = await db
+      .update(orders)
+      .set({
+        deletedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        notes: order.notes
+          ? `${order.notes}\n\n[DELETED] Soft-deleted by admin ${authResult.userId}`
+          : `[DELETED] Soft-deleted by admin ${authResult.userId}`,
+      })
+      .where(eq(orders.id, orderId))
+      .returning();
+
+    return createSuccessResponse(
+      {
+        message: "Order deleted successfully",
+        orderId: deletedOrder.id,
+        orderNumber: deletedOrder.orderNumber,
+        stockRestored: !["cancelled", "refunded"].includes(order.status),
+      },
+      { message: "Order deleted successfully" }
     );
+  } catch (error) {
+    return handleUnexpectedError(error, "DELETE /api/orders/[id]");
   }
 }

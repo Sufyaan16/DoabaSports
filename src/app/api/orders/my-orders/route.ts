@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/db/index";
 import { orders } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and, or, isNull } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth-helpers";
 import { checkRateLimit, getRateLimitIdentifier, getIpAddress } from "@/lib/rate-limit";
 import {
@@ -30,20 +30,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get user's email from auth
     const user = authResult.user;
-    if (!user?.primaryEmail) {
-      return createErrorResponse({
-        code: ErrorCode.USER_NOT_FOUND,
-        message: "User email not found",
-      });
-    }
 
-    // Fetch orders for this user's email
+    // Match orders by userId (new orders) OR by email (legacy orders)
+    // Also exclude soft-deleted orders
     const userOrders = await db
       .select()
       .from(orders)
-      .where(eq(orders.customerEmail, user.primaryEmail))
+      .where(
+        and(
+          isNull(orders.deletedAt),
+          or(
+            eq(orders.userId, authResult.userId),
+            user?.primaryEmail
+              ? eq(orders.customerEmail, user.primaryEmail)
+              : undefined
+          )
+        )
+      )
       .orderBy(desc(orders.createdAt));
 
     return NextResponse.json({

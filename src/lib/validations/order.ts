@@ -55,7 +55,7 @@ export const paymentMethodSchema = z.enum(
 
 // Create order schema (for checkout)
 export const createOrderSchema = z.object({
-  orderNumber: orderNumberSchema,
+  orderNumber: orderNumberSchema.optional(), // Server generates this, client can omit
   customerName: nameSchema,
   customerEmail: emailSchema,
   customerPhone: phoneSchema,

@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import db from "@/db/index";
 import { orders, products } from "@/db/schema";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, sql, and, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { createOrderSchema } from "@/lib/validations/order";
 import { resend } from "@/lib/resend";
@@ -50,19 +50,25 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    // Build query with optional status filter
-    const baseQuery = db.select().from(orders);
-    const baseCountQuery = db.select({ count: sql<number>`count(*)` }).from(orders);
+    // Get total count (always exclude soft-deleted orders)
+    const countCondition = status
+      ? and(isNull(orders.deletedAt), eq(orders.status, status as any))
+      : isNull(orders.deletedAt);
 
-    // Get total count
-    const [{ count: totalCount }] = await (status 
-      ? baseCountQuery.where(eq(orders.status, status as any))
-      : baseCountQuery);
+    const [{ count: totalCount }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(countCondition);
 
-    // Get paginated orders
-    const allOrders = await (status
-      ? baseQuery.where(eq(orders.status, status as any))
-      : baseQuery)
+    // Get paginated orders (exclude soft-deleted)
+    const queryCondition = status
+      ? and(isNull(orders.deletedAt), eq(orders.status, status as any))
+      : isNull(orders.deletedAt);
+
+    const allOrders = await db
+      .select()
+      .from(orders)
+      .where(queryCondition)
       .orderBy(desc(orders.createdAt))
       .limit(limit)
       .offset(offset);
@@ -113,6 +119,12 @@ export async function POST(request: Request) {
     const validatedData = validationResult.data;
 
     // ========================================
+    // SERVER-SIDE ORDER NUMBER GENERATION
+    // Never trust client-generated order numbers!
+    // ========================================
+    const serverOrderNumber = `ORD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+
+    // ========================================
     // SERVER-SIDE PRICE RECALCULATION
     // NEVER trust client-provided prices!
     // ========================================
@@ -161,6 +173,8 @@ export async function POST(request: Request) {
     // Use SERVER-CALCULATED prices, not client prices
     const finalOrderData = {
       ...validatedData,
+      orderNumber: serverOrderNumber, // Server-generated, not client
+      userId: authResult.userId, // Track who placed this order
       items: priceCalculation.items.map(item => ({
         productId: item.productId,
         productName: item.productName,
@@ -179,13 +193,13 @@ export async function POST(request: Request) {
     const existingOrder = await db
       .select()
       .from(orders)
-      .where(eq(orders.orderNumber, validatedData.orderNumber))
+      .where(eq(orders.orderNumber, serverOrderNumber))
       .limit(1);
 
     if (existingOrder.length > 0) {
       return createErrorResponse({
         code: ErrorCode.ORDER_ALREADY_EXISTS,
-        details: { orderNumber: validatedData.orderNumber },
+        details: { orderNumber: serverOrderNumber },
       });
     }
 
@@ -225,10 +239,10 @@ export async function POST(request: Request) {
         await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'orders@yourdomain.com',
           to: validatedData.customerEmail,
-          subject: `Order Confirmation - ${validatedData.orderNumber}`,
+          subject: `Order Confirmation - ${serverOrderNumber}`,
           react: OrderConfirmationEmail({
             customerName: validatedData.customerName,
-            orderNumber: validatedData.orderNumber,
+            orderNumber: serverOrderNumber,
             orderDate: new Date().toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
