@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useCart } from "@/contexts/cart-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -56,10 +57,13 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           <div className="space-y-4">
             {/* Main Image */}
             <div className="relative aspect-square overflow-hidden rounded-lg border bg-muted">
-              <img
+              <Image
                 src={selectedImage.src}
                 alt={selectedImage.alt}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover"
+                priority
               />
               {product.badge && (
                 <Badge
@@ -84,10 +88,12 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                         : "border-muted hover:border-primary/50"
                     }`}
                   >
-                    <img
+                    <Image
                       src={img.src}
                       alt={img.alt}
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="200px"
+                      className="object-cover"
                     />
                   </button>
                 ))}

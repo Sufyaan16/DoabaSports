@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Search, Loader2, ArrowRight, Package } from "lucide-react";
 import Link from "next/link";
@@ -187,11 +188,15 @@ export function GlobalSearchBar() {
                     selectedIndex === index ? "bg-gray-100" : ""
                   }`}
                 >
-                  <img
-                    src={product.image.src}
-                    alt={product.name}
-                    className="w-12 h-12 object-cover rounded"
-                  />
+                  <div className="relative w-12 h-12 shrink-0 rounded overflow-hidden">
+                    <Image
+                      src={product.image.src}
+                      alt={product.name}
+                      fill
+                      sizes="48px"
+                      className="object-cover"
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">
                       {highlightMatch(product.name, query)}

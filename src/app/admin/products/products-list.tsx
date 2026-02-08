@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useRouter } from "next/navigation";import Image from "next/image";import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -192,11 +191,15 @@ export function ProductsList({ products: initialProducts, totalCount: initialTot
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <img
-                        src={product.image.src}
-                        alt={product.name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
+                      <div className="relative w-16 h-16 shrink-0 rounded overflow-hidden">
+                        <Image
+                          src={product.image.src}
+                          alt={product.name}
+                          fill
+                          sizes="64px"
+                          className="object-cover"
+                        />
+                      </div>
                       <div>
                         <h3 className="font-semibold">{product.name}</h3>
                         <p className="text-sm text-muted-foreground">

@@ -2,6 +2,7 @@
 
 import { ShoppingCart, Trash2, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useCart } from "@/contexts/cart-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,11 +52,15 @@ export function CartIcon() {
                     key={item.id}
                     className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
-                    <img
-                      src={item.image.src}
-                      alt={item.name}
-                      className="w-16 h-16 object-cover rounded"
-                    />
+                    <div className="relative w-16 h-16 shrink-0 rounded overflow-hidden">
+                      <Image
+                        src={item.image.src}
+                        alt={item.name}
+                        fill
+                        sizes="64px"
+                        className="object-cover"
+                      />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-sm truncate">
                         {item.name}

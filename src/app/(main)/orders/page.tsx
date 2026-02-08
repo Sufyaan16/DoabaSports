@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@stackframe/stack";
 import Link from "next/link";
+import NextImage from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -147,11 +148,13 @@ export default function CustomerOrdersPage() {
                 {/* Order Items Preview */}
                 <div className="flex gap-4 overflow-x-auto pb-2">
                   {order.items.slice(0, 4).map((item, index) => (
-                    <div key={index} className="shrink-0">
-                      <img
+                    <div key={index} className="shrink-0 relative w-20 h-20 rounded border overflow-hidden">
+                      <NextImage
                         src={item.productImage}
                         alt={item.productName}
-                        className="w-20 h-20 object-cover rounded border"
+                        fill
+                        sizes="80px"
+                        className="object-cover"
                       />
                     </div>
                   ))}

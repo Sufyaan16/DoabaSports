@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 import { Price, PriceValue } from "@/components/price";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -70,10 +71,12 @@ const ProductCard1 = ({ className }: ProductCard1Props) => {
       <Card className="h-full overflow-hidden p-0">
         <CardHeader className="relative block p-0">
           <AspectRatio ratio={1.268115942} className="overflow-hidden">
-            <img
+            <Image
               src={PRODUCT_CARD.image.src}
               alt={PRODUCT_CARD.image.alt}
-              className="block size-full object-cover object-center"
+              fill
+              sizes="(max-width: 768px) 100vw, 400px"
+              className="block object-cover object-center"
             />
           </AspectRatio>
           {PRODUCT_CARD.badge && (

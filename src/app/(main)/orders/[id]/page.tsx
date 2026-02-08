@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@stackframe/stack";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -249,11 +250,15 @@ export default function CustomerOrderDetailPage() {
                 {order.items.map((item, index) => (
                   <div key={index}>
                     <div className="flex gap-4">
-                      <img
-                        src={item.productImage}
-                        alt={item.productName}
-                        className="w-24 h-24 object-cover rounded border"
-                      />
+                      <div className="relative w-24 h-24 shrink-0 rounded border overflow-hidden">
+                        <Image
+                          src={item.productImage}
+                          alt={item.productName}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                        />
+                      </div>
                       <div className="flex-1">
                         <h3 className="font-semibold">{item.productName}</h3>
                         <p className="text-sm text-muted-foreground mt-1">

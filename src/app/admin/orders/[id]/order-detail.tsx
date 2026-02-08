@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -428,11 +429,15 @@ export function OrderDetail({ order: initialOrder }: OrderDetailProps) {
               <div className="space-y-4">
                 {order.items.map((item, index) => (
                   <div key={index} className="flex gap-4 pb-4 border-b last:border-0 last:pb-0">
-                    <img
-                      src={item.productImage}
-                      alt={item.productName}
-                      className="w-20 h-20 object-cover rounded"
-                    />
+                    <div className="relative w-20 h-20 shrink-0 rounded overflow-hidden">
+                      <Image
+                        src={item.productImage}
+                        alt={item.productName}
+                        fill
+                        sizes="80px"
+                        className="object-cover"
+                      />
+                    </div>
                     <div className="flex-1">
                       <p className="font-medium">{item.productName}</p>
                       <p className="text-sm text-muted-foreground">

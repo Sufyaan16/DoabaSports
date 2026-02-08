@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Price, PriceValue } from "@/components/price";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
@@ -73,10 +74,13 @@ export function ProductCard({ product }: ProductCardProps) {
       <Card className="h-full overflow-hidden p-0">
         <CardHeader className="relative block p-0">
           <AspectRatio ratio={1.268115942} className="overflow-hidden">
-            <img
+            <Image
               src={displayImage.src}
               alt={displayImage.alt}
-              className="block size-full object-cover object-center transition-opacity duration-300"
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="block object-cover object-center transition-opacity duration-300"
+              priority={false}
             />
           </AspectRatio>
           {product.badge && (

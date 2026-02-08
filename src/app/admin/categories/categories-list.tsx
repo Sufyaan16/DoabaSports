@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -164,11 +165,15 @@ export function CategoriesList({ categories: initialCategories }: CategoriesList
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <img
-                        src={category.image}
-                        alt={category.name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
+                      <div className="relative w-16 h-16 shrink-0 rounded overflow-hidden">
+                        <Image
+                          src={category.image}
+                          alt={category.name}
+                          fill
+                          sizes="64px"
+                          className="object-cover"
+                        />
+                      </div>
                       <div>
                         <h3 className="font-semibold">{category.name}</h3>
                         <p className="text-sm text-muted-foreground">

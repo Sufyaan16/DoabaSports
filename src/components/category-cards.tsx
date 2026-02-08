@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import type { CategoryInfo } from "@/lib/data/categories";
@@ -27,10 +28,12 @@ function CategoryCard({ category }: { category: CategoryInfo }) {
     >
       <Card className="relative h-75 overflow-hidden border-2 transition-all duration-300 hover:border-outline hover:shadow-2xl">
         <div className="relative w-full h-full">
-          <img
+          <Image
             src={displayImage}
             alt={category.name}
-            className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover transition-all duration-500 group-hover:scale-105"
           />
           {/* Gradient overlay */}
           <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/40 to-transparent" />
