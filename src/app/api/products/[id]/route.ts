@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/db/index";
-import { products } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { products, orders } from "@/db/schema";
+import { eq, and, isNull, notInArray, sql } from "drizzle-orm";
 import { updateProductSchema } from "@/lib/validations/product";
 import { requireAdmin } from "@/lib/auth-helpers";
 import {
   createErrorResponse,
+  createSuccessResponse,
   handleZodError,
   handleDatabaseError,
   handleUnexpectedError,
@@ -166,9 +167,35 @@ export async function DELETE(
 
   try {
     const { id } = await params;
+    const productId = parseInt(id);
+
+    // Check if this product is referenced in any active (non-cancelled, non-refunded, non-deleted) orders
+    // We search the JSON items array for this product ID
+    const activeOrders = await db
+      .select({ id: orders.id, orderNumber: orders.orderNumber })
+      .from(orders)
+      .where(
+        and(
+          isNull(orders.deletedAt),
+          sql`${orders.status} NOT IN ('cancelled', 'refunded', 'delivered')`,
+          sql`${orders.items}::jsonb @> ${JSON.stringify([{ productId }])}::jsonb`
+        )
+      )
+      .limit(5);
+
+    if (activeOrders.length > 0) {
+      return createErrorResponse({
+        code: ErrorCode.PRODUCT_HAS_ACTIVE_ORDERS,
+        message: `Cannot delete this product because it is referenced in ${activeOrders.length} active order(s).`,
+        details: {
+          activeOrderNumbers: activeOrders.map((o) => o.orderNumber),
+        },
+      });
+    }
+
     const deleted = await db
       .delete(products)
-      .where(eq(products.id, parseInt(id)))
+      .where(eq(products.id, productId))
       .returning();
 
     if (deleted.length === 0) {

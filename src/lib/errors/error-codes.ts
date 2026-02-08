@@ -37,6 +37,8 @@ export enum ErrorCode {
   // ========================================
   PRODUCT_OUT_OF_STOCK = "PRODUCT_OUT_OF_STOCK",
   PRODUCT_INSUFFICIENT_STOCK = "PRODUCT_INSUFFICIENT_STOCK",
+  PRODUCT_HAS_ACTIVE_ORDERS = "PRODUCT_HAS_ACTIVE_ORDERS",
+  CATEGORY_HAS_PRODUCTS = "CATEGORY_HAS_PRODUCTS",
   ORDER_ALREADY_EXISTS = "ORDER_ALREADY_EXISTS",
   ORDER_CANNOT_BE_CANCELLED = "ORDER_CANNOT_BE_CANCELLED",
   ORDER_ALREADY_CANCELLED = "ORDER_ALREADY_CANCELLED",
@@ -104,6 +106,8 @@ export const ErrorStatusCode: Record<ErrorCode, number> = {
   // Business Logic (400, 409, 422)
   [ErrorCode.PRODUCT_OUT_OF_STOCK]: 400,
   [ErrorCode.PRODUCT_INSUFFICIENT_STOCK]: 400,
+  [ErrorCode.PRODUCT_HAS_ACTIVE_ORDERS]: 409,
+  [ErrorCode.CATEGORY_HAS_PRODUCTS]: 409,
   [ErrorCode.ORDER_ALREADY_EXISTS]: 409,
   [ErrorCode.ORDER_CANNOT_BE_CANCELLED]: 422,
   [ErrorCode.ORDER_ALREADY_CANCELLED]: 409,
@@ -165,6 +169,8 @@ export const ErrorMessage: Record<ErrorCode, string> = {
   // Business Logic
   [ErrorCode.PRODUCT_OUT_OF_STOCK]: "This product is currently out of stock",
   [ErrorCode.PRODUCT_INSUFFICIENT_STOCK]: "Insufficient stock available",
+  [ErrorCode.PRODUCT_HAS_ACTIVE_ORDERS]: "This product cannot be deleted because it is referenced by active orders",
+  [ErrorCode.CATEGORY_HAS_PRODUCTS]: "This category cannot be deleted because it has products assigned to it",
   [ErrorCode.ORDER_ALREADY_EXISTS]: "An order with this number already exists",
   [ErrorCode.ORDER_CANNOT_BE_CANCELLED]: "This order cannot be cancelled",
   [ErrorCode.ORDER_ALREADY_CANCELLED]: "This order has already been cancelled",

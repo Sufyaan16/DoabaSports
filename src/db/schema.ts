@@ -18,7 +18,7 @@ export const products = pgTable("products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   company: text("company").notNull(),
-  category: text("category").notNull(), // References categories.slug
+  category: text("category").notNull().references(() => categories.slug, { onDelete: "restrict", onUpdate: "cascade" }),
   imageSrc: text("image_src").notNull(),
   imageAlt: text("image_alt").notNull(),
   imageHoverSrc: text("image_hover_src"),

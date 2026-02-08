@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/db/index";
-import { categories } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { categories, products } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 import { updateCategorySchema } from "@/lib/validations/category";
 import { ZodError } from "zod";
 import { requireAdmin } from "@/lib/auth-helpers";
@@ -142,6 +142,21 @@ export async function DELETE(
 
   try {
     const { slug } = await params;
+
+    // Check if any products reference this category
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(eq(products.category, slug));
+
+    if (count > 0) {
+      return createErrorResponse({
+        code: ErrorCode.CATEGORY_HAS_PRODUCTS,
+        message: `Cannot delete category "${slug}" because ${count} product(s) are assigned to it. Reassign or delete those products first.`,
+        details: { slug, productCount: count },
+      });
+    }
+
     const deleted = await db
       .delete(categories)
       .where(eq(categories.slug, slug))
