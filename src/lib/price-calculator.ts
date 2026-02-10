@@ -1,6 +1,7 @@
 import db from "@/db";
 import { products } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
+import { TAX_RATE } from "@/lib/constants";
 
 export interface OrderItem {
   productId: number;
@@ -38,7 +39,7 @@ export interface PriceCalculationError {
  */
 export async function calculateOrderPrices(
   items: OrderItem[],
-  taxRate: number = 0.08,
+  taxRate: number = TAX_RATE,
   shippingCost: number = 0
 ): Promise<OrderCalculation | PriceCalculationError> {
   try {

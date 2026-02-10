@@ -94,31 +94,28 @@ export async function POST(
       });
     }
 
-    // Restore inventory if order had paid items
-    if (order.paymentStatus === "paid") {
-      const orderItems = order.items as Array<{
-        productId: number;
-        quantity: number;
-      }>;
+    // Always restore inventory on cancel — stock was deducted at order creation
+    // regardless of payment status
+    const orderItems = order.items as Array<{
+      productId: number;
+      quantity: number;
+    }>;
 
-      for (const item of orderItems) {
-        // Get product to check if inventory tracking is enabled
-        const [product] = await db
-          .select()
-          .from(products)
-          .where(eq(products.id, item.productId))
-          .limit(1);
+    for (const item of orderItems) {
+      const [product] = await db
+        .select()
+        .from(products)
+        .where(eq(products.id, item.productId))
+        .limit(1);
 
-        if (product && product.trackInventory) {
-          // Restore the stock
-          await db
-            .update(products)
-            .set({
-              stockQuantity: (product.stockQuantity || 0) + item.quantity,
-              updatedAt: new Date().toISOString(),
-            })
-            .where(eq(products.id, item.productId));
-        }
+      if (product && product.trackInventory) {
+        await db
+          .update(products)
+          .set({
+            stockQuantity: (product.stockQuantity || 0) + item.quantity,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(products.id, item.productId));
       }
     }
 
@@ -136,7 +133,7 @@ export async function POST(
       {
         order: updatedOrder,
         message: "Order cancelled successfully",
-        inventoryRestored: order.paymentStatus === "paid",
+        inventoryRestored: true,
       },
       { message: "Order cancelled successfully" }
     );

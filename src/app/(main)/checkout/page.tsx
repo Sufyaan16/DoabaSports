@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useUser } from "@stackframe/stack";
 import { checkoutFormSchema } from "@/lib/validations/checkout";
+import { TAX_RATE, TAX_LABEL, SHIPPING_COST, CURRENCY, SHIPPING_COUNTRY, PAYMENT_METHOD } from "@/lib/constants";
 import { z } from "zod";
 
 export default function CheckoutPage() {
@@ -28,8 +29,8 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   const cartTotal = getCartTotal();
-  const shippingCost = cartTotal > 0 ? 15 : 0;
-  const tax = cartTotal * 0.1; // 10% tax
+  const shippingCost = cartTotal > 0 ? SHIPPING_COST : 0;
+  const tax = cartTotal * TAX_RATE;
   const grandTotal = cartTotal + shippingCost + tax;
 
   const handlePlaceOrder = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -85,7 +86,7 @@ export default function CheckoutPage() {
       shippingCity: validated.city,
       shippingState: validated.state,
       shippingZip: validated.zip,
-      shippingCountry: "USA",
+      shippingCountry: SHIPPING_COUNTRY,
       items: cart.map((item) => ({
         productId: item.id,
         productName: item.name,
@@ -98,10 +99,10 @@ export default function CheckoutPage() {
       tax: parseFloat(tax.toFixed(2)),
       shippingCost: parseFloat(shippingCost.toFixed(2)),
       total: parseFloat(grandTotal.toFixed(2)),
-      currency: "USD",
+      currency: CURRENCY,
       status: "pending",
       paymentStatus: "unpaid",
-      paymentMethod: "cod",
+      paymentMethod: PAYMENT_METHOD,
     };
 
     try {
@@ -406,7 +407,7 @@ export default function CheckoutPage() {
                   <span className="font-medium">${shippingCost.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Tax (10%)</span>
+                  <span className="text-muted-foreground">{TAX_LABEL}</span>
                   <span className="font-medium">${tax.toFixed(2)}</span>
                 </div>
               </div>

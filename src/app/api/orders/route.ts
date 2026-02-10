@@ -9,6 +9,7 @@ import OrderConfirmationEmail from "@/emails/order-confirmation";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
 import { checkRateLimit, getRateLimitIdentifier, getIpAddress } from "@/lib/rate-limit";
 import { calculateOrderPrices } from "@/lib/price-calculator";
+import { TAX_RATE } from "@/lib/constants";
 import {
   createErrorResponse,
   handleZodError,
@@ -135,7 +136,7 @@ export async function POST(request: Request) {
 
     const priceCalculation = await calculateOrderPrices(
       orderItems,
-      0.08, // 8% tax rate - adjust based on your needs
+      TAX_RATE,
       validatedData.shippingCost
     );
 
@@ -204,35 +205,63 @@ export async function POST(request: Request) {
     }
 
     try {
-      const newOrder = await db
-        .insert(orders)
-        .values({
-          ...finalOrderData,
-          subtotal: finalOrderData.subtotal.toString(),
-          tax: finalOrderData.tax.toString(),
-          shippingCost: finalOrderData.shippingCost.toString(),
-          total: finalOrderData.total.toString(),
-        })
-        .returning();
+      // ========================================
+      // TRANSACTION: Insert order + deduct stock atomically
+      // Prevents race conditions where two concurrent orders
+      // could oversell the last item
+      // ========================================
+      const newOrder = await db.transaction(async (tx) => {
+        // Re-verify stock inside the transaction to prevent overselling
+        for (const item of finalOrderData.items) {
+          if (item.productId) {
+            const [product] = await tx
+              .select({
+                id: products.id,
+                stockQuantity: products.stockQuantity,
+                trackInventory: products.trackInventory,
+                name: products.name,
+              })
+              .from(products)
+              .where(eq(products.id, item.productId))
+              .limit(1);
 
-      // Deduct stock for each item
-      for (const item of finalOrderData.items) {
-        if (item.productId) {
-          const [product] = await db
-            .select()
-            .from(products)
-            .where(eq(products.id, item.productId))
-            .limit(1);
+            if (product?.trackInventory) {
+              const available = product.stockQuantity || 0;
+              if (available < item.quantity) {
+                throw new Error(
+                  `Insufficient stock for "${product.name}": requested ${item.quantity}, available ${available}`
+                );
+              }
+            }
+          }
+        }
 
-          if (product && product.trackInventory) {
-            const newStockQuantity = (product.stockQuantity || 0) - item.quantity;
-            await db
+        // Insert the order
+        const [inserted] = await tx
+          .insert(orders)
+          .values({
+            ...finalOrderData,
+            subtotal: finalOrderData.subtotal.toString(),
+            tax: finalOrderData.tax.toString(),
+            shippingCost: finalOrderData.shippingCost.toString(),
+            total: finalOrderData.total.toString(),
+          })
+          .returning();
+
+        // Deduct stock atomically inside the same transaction
+        for (const item of finalOrderData.items) {
+          if (item.productId) {
+            await tx
               .update(products)
-              .set({ stockQuantity: Math.max(0, newStockQuantity) })
+              .set({
+                stockQuantity: sql`GREATEST(0, ${products.stockQuantity} - ${item.quantity})`,
+              })
               .where(eq(products.id, item.productId));
           }
         }
-      }
+
+        return inserted;
+      });
 
       // Send order confirmation email
       try {
@@ -274,13 +303,20 @@ export async function POST(request: Request) {
         console.error('❌ Failed to send order confirmation email:', emailError);
       }
 
-      return NextResponse.json(newOrder[0], { status: 201 });
+      return NextResponse.json(newOrder, { status: 201 });
     } catch (insertError: any) {
+      // Handle stock errors from transaction
+      if (insertError?.message?.includes('Insufficient stock')) {
+        return createErrorResponse({
+          code: ErrorCode.PRODUCT_INSUFFICIENT_STOCK,
+          message: insertError.message,
+        });
+      }
       // Handle database unique constraint violation for orderNumber
       if (insertError?.code === '23505' || insertError?.constraint?.includes('order_number')) {
         return createErrorResponse({
           code: ErrorCode.ORDER_ALREADY_EXISTS,
-          details: { orderNumber: validatedData.orderNumber },
+          details: { orderNumber: serverOrderNumber },
         });
       }
       throw insertError;
