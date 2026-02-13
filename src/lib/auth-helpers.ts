@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stackServerApp } from "@/stack/server";
 import { userMetadataSchema } from "@/lib/validations/user";
 import { createErrorResponse, ErrorCode } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 export type AuthResult = {
   success: false;
@@ -67,7 +68,7 @@ export async function requireAuth(): Promise<AuthResult> {
       role,
     };
   } catch (error) {
-    console.error("❌ Auth error:", error);
+    logger.error("Auth error", { error });
     return {
       success: false,
       error: createErrorResponse({

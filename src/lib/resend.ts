@@ -11,7 +11,7 @@ export function getResend(): Resend | null {
 
   if (!process.env.RESEND_API_KEY) {
     if (process.env.NODE_ENV === 'development') {
-      console.warn('⚠️ RESEND_API_KEY is not defined — email sending is disabled');
+      console.warn('RESEND_API_KEY is not defined — email sending is disabled');
     }
     return null;
   }

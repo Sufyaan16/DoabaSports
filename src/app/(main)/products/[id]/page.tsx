@@ -4,11 +4,41 @@ import db from "@/db";
 import { products } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { Product } from "@/lib/data/products";
+import type { Metadata } from "next";
 
 interface ProductPageProps {
   params: Promise<{
     id: string;
   }>;
+}
+
+export async function generateMetadata({
+  params,
+}: ProductPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const [product] = await db
+    .select({ name: products.name, description: products.description, imageSrc: products.imageSrc })
+    .from(products)
+    .where(eq(products.id, Number(id)))
+    .limit(1);
+
+  if (!product) {
+    return { title: "Product Not Found" };
+  }
+
+  return {
+    title: product.name,
+    description:
+      product.description?.slice(0, 160) ||
+      `Shop ${product.name} at Doaba Sports — premium cricket equipment.`,
+    openGraph: {
+      title: product.name,
+      description:
+        product.description?.slice(0, 160) ||
+        `Shop ${product.name} at Doaba Sports.`,
+      images: product.imageSrc ? [{ url: product.imageSrc }] : undefined,
+    },
+  };
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {

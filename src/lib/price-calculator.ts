@@ -146,7 +146,7 @@ export async function calculateOrderPrices(
       total: Math.round(total * 100) / 100,
     };
   } catch (error) {
-    console.error("❌ Price calculation error:", error);
+    console.error("Price calculation error:", error);
     return {
       error: "Failed to calculate order prices",
       details: error instanceof Error ? error.message : "Unknown error",

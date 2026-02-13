@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import { logger } from "@/lib/logger";
 
 /**
  * Cache Configuration
@@ -23,9 +24,9 @@ function initRedis() {
         url: process.env.UPSTASH_REDIS_REST_URL,
         token: process.env.UPSTASH_REDIS_REST_TOKEN,
       });
-      console.log("✅ Redis cache initialized successfully");
+      logger.info("Redis cache initialized");
     } catch (error) {
-      console.error("❌ Failed to initialize Redis cache:", error);
+      logger.error("Failed to initialize Redis cache", { error });
     }
   }
 }
@@ -66,14 +67,14 @@ export async function getFromCache<T>(
     const cached = await redis!.get(cacheKey);
     
     if (cached) {
-      console.log(`🎯 Cache HIT: ${cacheKey}`);
+      logger.debug("Cache HIT", { key: cacheKey });
       return cached as T;
     }
     
-    console.log(`❌ Cache MISS: ${cacheKey}`);
+    logger.debug("Cache MISS", { key: cacheKey });
     return null;
   } catch (error) {
-    console.error("Cache read error:", error);
+    logger.error("Cache read error", { error });
     return null; // Fail gracefully
   }
 }
@@ -100,9 +101,9 @@ export async function setCache<T>(
     const cacheTTL = ttl || CACHE_TTL.PRODUCTS; // Default TTL
     
     await redis!.set(cacheKey, value, { ex: cacheTTL });
-    console.log(`✅ Cache SET: ${cacheKey} (TTL: ${cacheTTL}s)`);
+    logger.debug("Cache SET", { key: cacheKey, ttl: cacheTTL });
   } catch (error) {
-    console.error("Cache write error:", error);
+    logger.error("Cache write error", { error });
     // Fail gracefully - don't break the request
   }
 }
@@ -123,9 +124,9 @@ export async function deleteFromCache(
   try {
     const cacheKey = getCacheKey(namespace, key);
     await redis!.del(cacheKey);
-    console.log(`🗑️ Cache DELETE: ${cacheKey}`);
+    logger.debug("Cache DELETE", { key: cacheKey });
   } catch (error) {
-    console.error("Cache delete error:", error);
+    logger.error("Cache delete error", { error });
   }
 }
 
@@ -159,10 +160,10 @@ export async function invalidateCachePattern(pattern: string): Promise<void> {
     } while (scanCursor !== 0);
 
     if (totalDeleted > 0) {
-      console.log(`🗑️ Cache INVALIDATE: ${pattern} (${totalDeleted} keys)`);
+      logger.debug("Cache INVALIDATE", { pattern, totalDeleted });
     }
   } catch (error) {
-    console.error("Cache invalidation error:", error);
+    logger.error("Cache invalidation error", { error });
   }
 }
 

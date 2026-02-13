@@ -10,6 +10,13 @@ import db from "@/db";
 import { products } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import type { Product } from "@/lib/data/products";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Doaba Sports — Premium Cricket Equipment & Accessories",
+  description:
+    "Shop premium cricket bats, equipment, accessories, and apparel at Doaba Sports. Free COD shipping and dedicated customer support.",
+};
 
 export default async function Home() {
   // Fetch featured products from database

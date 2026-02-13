@@ -5,11 +5,41 @@ import { categories, products } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { CategoryInfo } from "@/lib/data/categories";
 import type { Product } from "@/lib/data/products";
+import type { Metadata } from "next";
 
 interface CategoryPageProps {
   params: Promise<{
     slug: string;
   }>;
+}
+
+export async function generateMetadata({
+  params,
+}: CategoryPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const [category] = await db
+    .select({ name: categories.name, description: categories.description, image: categories.image })
+    .from(categories)
+    .where(eq(categories.slug, slug))
+    .limit(1);
+
+  if (!category) {
+    return { title: "Category Not Found" };
+  }
+
+  return {
+    title: category.name,
+    description:
+      category.description ||
+      `Shop ${category.name} cricket equipment at Doaba Sports.`,
+    openGraph: {
+      title: category.name,
+      description:
+        category.description ||
+        `Browse ${category.name} at Doaba Sports.`,
+      images: category.image ? [{ url: category.image }] : undefined,
+    },
+  };
 }
 
 export default async function CategoryPage({ params }: CategoryPageProps) {

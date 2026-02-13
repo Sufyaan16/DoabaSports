@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import * as Sentry from "@sentry/nextjs";
 import { ErrorCode, ErrorStatusCode, ErrorMessage } from "./error-codes";
+import { logger } from "@/lib/logger";
 
 /**
  * Standard API Error Response Format
@@ -91,14 +93,21 @@ export function createErrorResponse(options: ErrorResponseOptions): NextResponse
 
   // Log errors based on severity
   if (logError || statusCode >= 500) {
-    console.error("❌ API Error:", {
+    logger.error("API Error", {
       code,
       statusCode,
       message: finalMessage,
       details,
       path,
-      timestamp: new Date().toISOString(),
     });
+
+    // Report 5xx errors to Sentry
+    if (statusCode >= 500) {
+      Sentry.captureMessage(`API Error: ${code}`, {
+        level: "error",
+        extra: { code, statusCode, message: finalMessage, details, path },
+      });
+    }
   }
 
   return NextResponse.json(errorResponse, { status: statusCode });
@@ -215,8 +224,15 @@ export function handleUnexpectedError(error: unknown, context?: string): NextRes
           context,
         }
       : undefined;
+
+    // Report to Sentry
+    Sentry.captureException(error, { extra: { context } });
   } else {
     errorDetails = isDev ? { error: String(error), context } : undefined;
+    Sentry.captureMessage(`Unexpected non-Error thrown: ${String(error)}`, {
+      level: "error",
+      extra: { context },
+    });
   }
 
   return createErrorResponse({

@@ -2,6 +2,7 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
 import { createErrorResponse, ErrorCode } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 // Initialize Redis client
 // NOTE: Add these to your .env.local:
@@ -52,9 +53,9 @@ function initRateLimiters() {
         prefix: "@ratelimit/relaxed",
       });
 
-      console.log("✅ Rate limiters initialized successfully");
+      logger.info("Rate limiters initialized");
     } catch (error) {
-      console.error("❌ Failed to initialize rate limiters:", error);
+      logger.error("Failed to initialize rate limiters", { error });
     }
   }
 }
@@ -77,7 +78,7 @@ export async function checkRateLimit(
   // If Redis is not configured, skip rate limiting (dev mode)
   if (!redis || !ratelimiters[tier]) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("⚠️ Rate limiting disabled - Redis not configured");
+      logger.warn("Rate limiting disabled - Redis not configured");
     }
     return null;
   }
@@ -98,7 +99,7 @@ export async function checkRateLimit(
 
     return null;
   } catch (error) {
-    console.error("❌ Rate limit check error:", error);
+    logger.error("Rate limit check error", { error });
     // On error, allow the request (fail open)
     return null;
   }

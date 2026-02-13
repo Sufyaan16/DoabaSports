@@ -1,5 +1,6 @@
 import { dirname } from "node:path";
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
@@ -40,4 +41,13 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Suppress Sentry logs during build
+  silent: true,
+
+  // Upload source maps for readable stack traces in Sentry
+  widenClientFileUpload: true,
+
+  // Disable Sentry webpack plugin when DSN is not set (e.g., local dev)
+  disableLogger: true,
+});

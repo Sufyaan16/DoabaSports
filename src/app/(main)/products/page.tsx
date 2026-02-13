@@ -4,6 +4,13 @@ import { products, categories } from "@/db/schema";
 import { desc, sql } from "drizzle-orm";
 import type { Product } from "@/lib/data/products";
 import type { CategoryInfo } from "@/lib/data/categories";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "All Products",
+  description:
+    "Browse our complete range of premium cricket bats, protective gear, accessories, and apparel. Find the perfect equipment for your game.",
+};
 
 const INITIAL_PRODUCTS_LIMIT = 12;
 

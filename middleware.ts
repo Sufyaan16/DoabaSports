@@ -2,9 +2,18 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { stackServerApp } from "@/stack/server";
 import { userMetadataSchema } from "@/lib/validations/user";
+import { validateCsrf } from "@/lib/csrf";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ── CSRF Protection: block cross-origin mutations to /api/* ──
+  if (pathname.startsWith("/api")) {
+    const csrfResult = validateCsrf(request);
+    if (csrfResult) return csrfResult;
+    // API routes pass through — auth is handled inside each route
+    return NextResponse.next();
+  }
 
   // Initialize metadata for authenticated users
   try {
@@ -83,11 +92,10 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

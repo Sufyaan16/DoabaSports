@@ -4,6 +4,13 @@ import db from "@/db";
 import { categories } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import type { CategoryInfo } from "@/lib/data/categories";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Shop by Category",
+  description:
+    "Explore cricket equipment categories — bats, protective gear, accessories, apparel, and more at Doaba Sports.",
+};
 
 export default async function CategoriesPage() {
   // Fetch categories from database
