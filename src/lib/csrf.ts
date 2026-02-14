@@ -71,14 +71,12 @@ export function validateCsrf(request: NextRequest): NextResponse | null {
 
   const allowed = getAllowedOrigins();
 
-  // If NEXT_PUBLIC_APP_URL is not configured (e.g. during initial setup),
-  // fall back to the Host header as the canonical origin.
-  if (allowed.size === 0) {
-    const host = request.headers.get("host");
-    if (host) {
-      const protocol = request.nextUrl.protocol || "https:";
-      allowed.add(`${protocol}//${host}`);
-    }
+  // Always include the Host header so same-origin requests pass even if
+  // NEXT_PUBLIC_APP_URL is a placeholder or misconfigured.
+  const host = request.headers.get("host");
+  if (host) {
+    const protocol = request.nextUrl.protocol || "https:";
+    allowed.add(`${protocol}//${host}`);
   }
 
   if (!allowed.has(requestOrigin)) {

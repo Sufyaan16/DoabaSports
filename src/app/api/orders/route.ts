@@ -206,62 +206,59 @@ export async function POST(request: Request) {
 
     try {
       // ========================================
-      // TRANSACTION: Insert order + deduct stock atomically
-      // Prevents race conditions where two concurrent orders
-      // could oversell the last item
+      // Verify stock, insert order, then deduct stock
+      // (neon-http driver does not support db.transaction())
       // ========================================
-      const newOrder = await db.transaction(async (tx) => {
-        // Re-verify stock inside the transaction to prevent overselling
-        for (const item of finalOrderData.items) {
-          if (item.productId) {
-            const [product] = await tx
-              .select({
-                id: products.id,
-                stockQuantity: products.stockQuantity,
-                trackInventory: products.trackInventory,
-                name: products.name,
-              })
-              .from(products)
-              .where(eq(products.id, item.productId))
-              .limit(1);
 
-            if (product?.trackInventory) {
-              const available = product.stockQuantity || 0;
-              if (available < item.quantity) {
-                throw new Error(
-                  `Insufficient stock for "${product.name}": requested ${item.quantity}, available ${available}`
-                );
-              }
+      // 1. Re-verify stock before inserting
+      for (const item of finalOrderData.items) {
+        if (item.productId) {
+          const [product] = await db
+            .select({
+              id: products.id,
+              stockQuantity: products.stockQuantity,
+              trackInventory: products.trackInventory,
+              name: products.name,
+            })
+            .from(products)
+            .where(eq(products.id, item.productId))
+            .limit(1);
+
+          if (product?.trackInventory) {
+            const available = product.stockQuantity || 0;
+            if (available < item.quantity) {
+              return createErrorResponse({
+                code: ErrorCode.PRODUCT_INSUFFICIENT_STOCK,
+                message: `Insufficient stock for "${product.name}": requested ${item.quantity}, available ${available}`,
+              });
             }
           }
         }
+      }
 
-        // Insert the order
-        const [inserted] = await tx
-          .insert(orders)
-          .values({
-            ...finalOrderData,
-            subtotal: finalOrderData.subtotal.toString(),
-            tax: finalOrderData.tax.toString(),
-            shippingCost: finalOrderData.shippingCost.toString(),
-            total: finalOrderData.total.toString(),
-          })
-          .returning();
+      // 2. Insert the order
+      const [newOrder] = await db
+        .insert(orders)
+        .values({
+          ...finalOrderData,
+          subtotal: finalOrderData.subtotal.toString(),
+          tax: finalOrderData.tax.toString(),
+          shippingCost: finalOrderData.shippingCost.toString(),
+          total: finalOrderData.total.toString(),
+        })
+        .returning();
 
-        // Deduct stock atomically inside the same transaction
-        for (const item of finalOrderData.items) {
-          if (item.productId) {
-            await tx
-              .update(products)
-              .set({
-                stockQuantity: sql`GREATEST(0, ${products.stockQuantity} - ${item.quantity})`,
-              })
-              .where(eq(products.id, item.productId));
-          }
+      // 3. Deduct stock
+      for (const item of finalOrderData.items) {
+        if (item.productId) {
+          await db
+            .update(products)
+            .set({
+              stockQuantity: sql`GREATEST(0, ${products.stockQuantity} - ${item.quantity})`,
+            })
+            .where(eq(products.id, item.productId));
         }
-
-        return inserted;
-      });
+      }
 
       // Send order confirmation email
       try {
@@ -305,13 +302,6 @@ export async function POST(request: Request) {
 
       return NextResponse.json(newOrder, { status: 201 });
     } catch (insertError: any) {
-      // Handle stock errors from transaction
-      if (insertError?.message?.includes('Insufficient stock')) {
-        return createErrorResponse({
-          code: ErrorCode.PRODUCT_INSUFFICIENT_STOCK,
-          message: insertError.message,
-        });
-      }
       // Handle database unique constraint violation for orderNumber
       if (insertError?.code === '23505' || insertError?.constraint?.includes('order_number')) {
         return createErrorResponse({
