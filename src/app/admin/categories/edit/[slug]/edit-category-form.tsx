@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CategoryInfo } from "@/lib/data/categories";
+import { useCloudinaryUpload } from "@/hooks/use-cloudinary-upload";
 
 interface EditCategoryFormProps {
   category: CategoryInfo;
@@ -32,25 +33,21 @@ export function EditCategoryForm({ category }: EditCategoryFormProps) {
   const [imagePreview, setImagePreview] = useState<string>(category.image);
   const [imageHoverPreview, setImageHoverPreview] = useState<string>(category.imageHover || "");
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { uploading: imageUploading, uploadFile } = useCloudinaryUpload();
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const url = await uploadFile(file);
+      if (url) setImagePreview(url);
     }
   };
 
-  const handleImageHoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageHoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageHoverPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const url = await uploadFile(file);
+      if (url) setImageHoverPreview(url);
     }
   };
 
@@ -207,11 +204,13 @@ export function EditCategoryForm({ category }: EditCategoryFormProps) {
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
+                  disabled={imageUploading}
                   className="cursor-pointer"
                 />
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload a new primary banner image to replace the current one
-                  (recommended: 1920x1080px)
+                  {imageUploading
+                    ? "Uploading to cloud..."
+                    : "Upload a new primary banner image to replace the current one (recommended: 1920x1080px)"}
                 </p>
               </div>
               {imagePreview && (
@@ -237,10 +236,13 @@ export function EditCategoryForm({ category }: EditCategoryFormProps) {
                   type="file"
                   accept="image/*"
                   onChange={handleImageHoverChange}
+                  disabled={imageUploading}
                   className="cursor-pointer"
                 />
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload hover image (optional - shown when customer hovers over category card)
+                  {imageUploading
+                    ? "Uploading to cloud..."
+                    : "Upload hover image (optional - shown when customer hovers over category card)"}
                 </p>
               </div>
               {imageHoverPreview && (
@@ -257,8 +259,8 @@ export function EditCategoryForm({ category }: EditCategoryFormProps) {
 
           {/* Action Buttons */}
           <div className="flex gap-4 pt-4">
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Updating Category..." : "Update Category"}
+            <Button type="submit" disabled={loading || imageUploading} className="flex-1">
+              {loading ? "Updating Category..." : imageUploading ? "Uploading Image..." : "Update Category"}
             </Button>
             <Button
               type="button"

@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCloudinaryUpload } from "@/hooks/use-cloudinary-upload";
 
 interface Textarea extends HTMLTextAreaElement {}
 
@@ -26,6 +27,9 @@ export function NewProductForm() {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [imageHoverPreview, setImageHoverPreview] = useState<string>("");
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [galleryUploading, setGalleryUploading] = useState<Record<number, boolean>>({});
+
+  const { uploading: imageUploading, uploadFile } = useCloudinaryUpload();
 
   const addGalleryUrl = () => {
     if (galleryUrls.length < 6) {
@@ -43,25 +47,32 @@ export function NewProductForm() {
     setGalleryUrls(updated);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const url = await uploadFile(file);
+      if (url) setImagePreview(url);
     }
   };
 
-  const handleImageHoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageHoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageHoverPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const url = await uploadFile(file);
+      if (url) setImageHoverPreview(url);
+    }
+  };
+
+  const handleGalleryFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    index: number,
+  ) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setGalleryUploading((prev) => ({ ...prev, [index]: true }));
+      const url = await uploadFile(file);
+      if (url) updateGalleryUrl(index, url);
+      setGalleryUploading((prev) => ({ ...prev, [index]: false }));
     }
   };
 
@@ -81,7 +92,7 @@ export function NewProductForm() {
         priceRegular: parseFloat(formData.get("price") as string),
         priceSale: formData.get("salePrice") ? parseFloat(formData.get("salePrice") as string) : null,
         priceCurrency: "USD",
-        imageSrc: imagePreview, // For now using the preview, in production you'd upload to cloud storage
+        imageSrc: imagePreview, // Cloudinary URL
         imageAlt: formData.get("name") as string,
         imageHoverSrc: imageHoverPreview || null,
         imageHoverAlt: imageHoverPreview ? `${formData.get("name")} - Alternate View` : null,
@@ -253,12 +264,15 @@ export function NewProductForm() {
                     type="file"
                     accept="image/*"
                     onChange={handleImageChange}
-                    required
+                    required={!imagePreview}
+                    disabled={imageUploading}
                     className="cursor-pointer"
                   />
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload primary product image (JPG, PNG, or WebP)
+                  {imageUploading
+                    ? "Uploading to cloud..."
+                    : "Upload primary product image (JPG, PNG, or WebP)"}
                 </p>
               </div>
               {imagePreview && (
@@ -287,11 +301,14 @@ export function NewProductForm() {
                     type="file"
                     accept="image/*"
                     onChange={handleImageHoverChange}
+                    disabled={imageUploading}
                     className="cursor-pointer"
                   />
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload hover image (optional - shown when customer hovers over product)
+                  {imageUploading
+                    ? "Uploading to cloud..."
+                    : "Upload hover image (optional - shown when customer hovers over product)"}
                 </p>
               </div>
               {imageHoverPreview && (
@@ -312,7 +329,7 @@ export function NewProductForm() {
               <div>
                 <h3 className="text-lg font-semibold">Gallery Images</h3>
                 <p className="text-sm text-muted-foreground">
-                  Add up to 6 gallery image URLs for the product card hover effect
+                  Add up to 6 gallery images for the product card hover effect
                 </p>
               </div>
               <Button
@@ -328,23 +345,33 @@ export function NewProductForm() {
 
             {galleryUrls.length === 0 && (
               <p className="text-sm text-muted-foreground italic py-4 text-center border border-dashed rounded-lg">
-                No gallery images added yet. Click "+ Add Image" to add up to 6 images.
+                No gallery images added yet. Click &quot;+ Add Image&quot; to add up to 6 images.
               </p>
             )}
 
             {galleryUrls.map((url, index) => (
               <div key={index} className="flex items-start gap-3">
-                <div className="flex-1 space-y-1">
-                  <Label htmlFor={`gallery-${index}`} className="text-sm">
+                <div className="flex-1 space-y-2">
+                  <Label className="text-sm">
                     Gallery Image {index + 1}
                   </Label>
                   <Input
-                    id={`gallery-${index}`}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleGalleryFileChange(e, index)}
+                    disabled={galleryUploading[index]}
+                    className="cursor-pointer"
+                  />
+                  <Input
                     type="url"
-                    placeholder="https://res.cloudinary.com/... or image URL"
+                    placeholder="Or paste image URL directly"
                     value={url}
                     onChange={(e) => updateGalleryUrl(index, e.target.value)}
+                    className="text-sm"
                   />
+                  {galleryUploading[index] && (
+                    <p className="text-xs text-muted-foreground">Uploading...</p>
+                  )}
                 </div>
                 {url && (
                   <div className="w-16 h-16 border rounded-lg overflow-hidden shrink-0 mt-6">
@@ -438,8 +465,8 @@ export function NewProductForm() {
 
           {/* Action Buttons */}
           <div className="flex gap-4 pt-4">
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Adding Product..." : "Add Product"}
+            <Button type="submit" disabled={loading || imageUploading} className="flex-1">
+              {loading ? "Adding Product..." : imageUploading ? "Uploading Image..." : "Add Product"}
             </Button>
             <Button
               type="button"

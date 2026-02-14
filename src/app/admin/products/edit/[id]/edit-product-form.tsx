@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Product } from "@/lib/data/products";
+import { useCloudinaryUpload } from "@/hooks/use-cloudinary-upload";
 
 interface EditProductFormProps {
   product: Product;
@@ -36,6 +37,9 @@ export function EditProductForm({ product }: EditProductFormProps) {
   const [galleryUrls, setGalleryUrls] = useState<string[]>(
     product.gallery || [],
   );
+  const [galleryUploading, setGalleryUploading] = useState<Record<number, boolean>>({});
+
+  const { uploading: imageUploading, uploadFile } = useCloudinaryUpload();
 
   const addGalleryUrl = () => {
     if (galleryUrls.length < 6) {
@@ -53,25 +57,32 @@ export function EditProductForm({ product }: EditProductFormProps) {
     setGalleryUrls(updated);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const url = await uploadFile(file);
+      if (url) setImagePreview(url);
     }
   };
 
-  const handleImageHoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageHoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageHoverPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const url = await uploadFile(file);
+      if (url) setImageHoverPreview(url);
+    }
+  };
+
+  const handleGalleryFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    index: number,
+  ) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setGalleryUploading((prev) => ({ ...prev, [index]: true }));
+      const url = await uploadFile(file);
+      if (url) updateGalleryUrl(index, url);
+      setGalleryUploading((prev) => ({ ...prev, [index]: false }));
     }
   };
 
@@ -265,12 +276,14 @@ export function EditProductForm({ product }: EditProductFormProps) {
                     type="file"
                     accept="image/*"
                     onChange={handleImageChange}
+                    disabled={imageUploading}
                     className="cursor-pointer"
                   />
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload a new primary image to replace the current one (JPG,
-                  PNG, or WebP)
+                  {imageUploading
+                    ? "Uploading to cloud..."
+                    : "Upload a new primary image to replace the current one (JPG, PNG, or WebP)"}
                 </p>
               </div>
               {imagePreview && (
@@ -297,12 +310,14 @@ export function EditProductForm({ product }: EditProductFormProps) {
                     type="file"
                     accept="image/*"
                     onChange={handleImageHoverChange}
+                    disabled={imageUploading}
                     className="cursor-pointer"
                   />
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload hover image (optional - shown when customer hovers over
-                  product)
+                  {imageUploading
+                    ? "Uploading to cloud..."
+                    : "Upload hover image (optional - shown when customer hovers over product)"}
                 </p>
               </div>
               {imageHoverPreview && (
@@ -323,7 +338,7 @@ export function EditProductForm({ product }: EditProductFormProps) {
               <div>
                 <h3 className="text-lg font-semibold">Gallery Images</h3>
                 <p className="text-sm text-muted-foreground">
-                  Add up to 6 gallery image URLs for the product card hover effect
+                  Add up to 6 gallery images for the product card hover effect
                 </p>
               </div>
               <Button
@@ -339,23 +354,33 @@ export function EditProductForm({ product }: EditProductFormProps) {
 
             {galleryUrls.length === 0 && (
               <p className="text-sm text-muted-foreground italic py-4 text-center border border-dashed rounded-lg">
-                No gallery images added yet. Click "+ Add Image" to add up to 6 images.
+                No gallery images added yet. Click &quot;+ Add Image&quot; to add up to 6 images.
               </p>
             )}
 
             {galleryUrls.map((url, index) => (
               <div key={index} className="flex items-start gap-3">
-                <div className="flex-1 space-y-1">
-                  <Label htmlFor={`gallery-${index}`} className="text-sm">
+                <div className="flex-1 space-y-2">
+                  <Label className="text-sm">
                     Gallery Image {index + 1}
                   </Label>
                   <Input
-                    id={`gallery-${index}`}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleGalleryFileChange(e, index)}
+                    disabled={galleryUploading[index]}
+                    className="cursor-pointer"
+                  />
+                  <Input
                     type="url"
-                    placeholder="https://res.cloudinary.com/... or image URL"
+                    placeholder="Or paste image URL directly"
                     value={url}
                     onChange={(e) => updateGalleryUrl(index, e.target.value)}
+                    className="text-sm"
                   />
+                  {galleryUploading[index] && (
+                    <p className="text-xs text-muted-foreground">Uploading...</p>
+                  )}
                 </div>
                 {url && (
                   <div className="w-16 h-16 border rounded-lg overflow-hidden shrink-0 mt-6">
@@ -456,8 +481,8 @@ export function EditProductForm({ product }: EditProductFormProps) {
 
           {/* Action Buttons */}
           <div className="flex gap-4 pt-4">
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Updating Product..." : "Update Product"}
+            <Button type="submit" disabled={loading || imageUploading} className="flex-1">
+              {loading ? "Updating Product..." : imageUploading ? "Uploading Image..." : "Update Product"}
             </Button>
             <Button
               type="button"

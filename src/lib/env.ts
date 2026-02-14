@@ -31,6 +31,11 @@ const serverEnvSchema = z.object({
 
   // App URL for CSRF origin check
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+
+  // Cloudinary (optional — image uploads disabled without it)
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

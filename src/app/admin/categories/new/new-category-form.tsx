@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
+import { useCloudinaryUpload } from "@/hooks/use-cloudinary-upload";
 
 export function NewCategoryForm() {
   const router = useRouter();
@@ -28,25 +29,21 @@ export function NewCategoryForm() {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [imageHoverPreview, setImageHoverPreview] = useState<string>("");
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { uploading: imageUploading, uploadFile } = useCloudinaryUpload();
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const url = await uploadFile(file);
+      if (url) setImagePreview(url);
     }
   };
 
-  const handleImageHoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageHoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageHoverPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const url = await uploadFile(file);
+      if (url) setImageHoverPreview(url);
     }
   };
 
@@ -228,11 +225,14 @@ export function NewCategoryForm() {
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
-                  required
+                  required={!imagePreview}
+                  disabled={imageUploading}
                   className="cursor-pointer"
                 />
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload primary banner image (recommended: 1920x1080px)
+                  {imageUploading
+                    ? "Uploading to cloud..."
+                    : "Upload primary banner image (recommended: 1920x1080px)"}
                 </p>
               </div>
               {imagePreview && (
@@ -260,10 +260,13 @@ export function NewCategoryForm() {
                   type="file"
                   accept="image/*"
                   onChange={handleImageHoverChange}
+                  disabled={imageUploading}
                   className="cursor-pointer"
                 />
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload hover image (optional - shown when customer hovers over category card)
+                  {imageUploading
+                    ? "Uploading to cloud..."
+                    : "Upload hover image (optional - shown when customer hovers over category card)"}
                 </p>
               </div>
               {imageHoverPreview && (
@@ -280,8 +283,8 @@ export function NewCategoryForm() {
 
           {/* Action Buttons */}
           <div className="flex gap-4 pt-4">
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Adding Category..." : "Add Category"}
+            <Button type="submit" disabled={loading || imageUploading} className="flex-1">
+              {loading ? "Adding Category..." : imageUploading ? "Uploading Image..." : "Add Category"}
             </Button>
             <Button
               type="button"
