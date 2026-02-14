@@ -25,6 +25,23 @@ export function NewProductForm() {
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [imageHoverPreview, setImageHoverPreview] = useState<string>("");
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+
+  const addGalleryUrl = () => {
+    if (galleryUrls.length < 6) {
+      setGalleryUrls([...galleryUrls, ""]);
+    }
+  };
+
+  const removeGalleryUrl = (index: number) => {
+    setGalleryUrls(galleryUrls.filter((_, i) => i !== index));
+  };
+
+  const updateGalleryUrl = (index: number, value: string) => {
+    const updated = [...galleryUrls];
+    updated[index] = value;
+    setGalleryUrls(updated);
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,6 +92,7 @@ export function NewProductForm() {
         stockQuantity: formData.get("stockQuantity") ? parseInt(formData.get("stockQuantity") as string) : 0,
         lowStockThreshold: formData.get("lowStockThreshold") ? parseInt(formData.get("lowStockThreshold") as string) : 10,
         trackInventory: formData.get("trackInventory") === "on",
+        galleryImages: galleryUrls.filter((url) => url.trim() !== ""),
       };
 
       // Send to API
@@ -111,6 +129,7 @@ export function NewProductForm() {
         (e.target as HTMLFormElement).reset();
         setImageHoverPreview("");
         setImagePreview("");
+        setGalleryUrls([]);
       }
     } catch (error) {
       setLoading(false);
@@ -285,6 +304,71 @@ export function NewProductForm() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Gallery Images Section */}
+          <div className="space-y-4 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Gallery Images</h3>
+                <p className="text-sm text-muted-foreground">
+                  Add up to 6 gallery image URLs for the product card hover effect
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addGalleryUrl}
+                disabled={galleryUrls.length >= 6}
+              >
+                + Add Image
+              </Button>
+            </div>
+
+            {galleryUrls.length === 0 && (
+              <p className="text-sm text-muted-foreground italic py-4 text-center border border-dashed rounded-lg">
+                No gallery images added yet. Click "+ Add Image" to add up to 6 images.
+              </p>
+            )}
+
+            {galleryUrls.map((url, index) => (
+              <div key={index} className="flex items-start gap-3">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor={`gallery-${index}`} className="text-sm">
+                    Gallery Image {index + 1}
+                  </Label>
+                  <Input
+                    id={`gallery-${index}`}
+                    type="url"
+                    placeholder="https://res.cloudinary.com/... or image URL"
+                    value={url}
+                    onChange={(e) => updateGalleryUrl(index, e.target.value)}
+                  />
+                </div>
+                {url && (
+                  <div className="w-16 h-16 border rounded-lg overflow-hidden shrink-0 mt-6">
+                    <img
+                      src={url}
+                      alt={`Gallery ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-6 text-red-500 hover:text-red-700 hover:bg-red-50 px-2"
+                  onClick={() => removeGalleryUrl(index)}
+                >
+                  ✕
+                </Button>
+              </div>
+            ))}
           </div>
 
           {/* Inventory Management Section */}
