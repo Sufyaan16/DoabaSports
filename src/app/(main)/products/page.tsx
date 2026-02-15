@@ -9,7 +9,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "All Products",
   description:
-    "Browse our complete range of premium cricket bats, protective gear, accessories, and apparel. Find the perfect equipment for your game.",
+    " Browse our complete range of premium cricket bats, protective gear, accessories, and apparel. Find the perfect equipment for your game.",
 };
 
 const INITIAL_PRODUCTS_LIMIT = 12;
