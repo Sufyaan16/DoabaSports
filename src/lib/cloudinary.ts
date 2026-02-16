@@ -27,7 +27,8 @@ function ensureConfigured() {
 }
 
 /**
- * Upload a base64 or data-URI image to Cloudinary.
+ * Upload an image to Cloudinary.
+ * Accepts a data URI (base64), a remote HTTP(S) URL, or a local file path.
  * Returns the secure URL of the uploaded image.
  */
 export async function uploadImage(

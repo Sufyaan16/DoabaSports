@@ -30,6 +30,38 @@ export async function POST(request: NextRequest) {
   if (!auth.success) return auth.error;
 
   try {
+    const contentType = request.headers.get("content-type") || "";
+
+    // Determine folder from optional query param
+    const folder =
+      request.nextUrl.searchParams.get("folder") || "doaba-sports";
+
+    // ── Branch A: JSON body with { url } → upload by remote URL ──
+    if (contentType.includes("application/json")) {
+      const body = await request.json();
+      const imageUrl = body?.url;
+
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return createErrorResponse({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: "A valid 'url' field is required in the JSON body",
+        });
+      }
+
+      const result = await uploadImage(imageUrl, { folder });
+
+      logger.info("Image uploaded to Cloudinary (via URL)", {
+        publicId: result.publicId,
+        userId: auth.userId,
+      });
+
+      return createSuccessResponse({
+        url: result.url,
+        publicId: result.publicId,
+      });
+    }
+
+    // ── Branch B: Multipart form with file ──
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -69,10 +101,6 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
     const base64 = buffer.toString("base64");
     const dataUri = `data:${file.type};base64,${base64}`;
-
-    // Determine folder from optional query param
-    const folder =
-      request.nextUrl.searchParams.get("folder") || "doaba-sports";
 
     const result = await uploadImage(dataUri, { folder });
 
