@@ -15,7 +15,8 @@ export function productsToCSV(products: Product[]): string {
     "Image URL",
     "Badge Text",
     "Badge Color",
-    "Stock Quantity"
+    "Stock Quantity",
+    "Gallery Images"
   ];
 
   const rows = products.map((product) => [
@@ -30,7 +31,8 @@ export function productsToCSV(products: Product[]): string {
     product.image.src,
     product.badge?.text || "",
     product.badge?.backgroundColor || "",
-    product.stockQuantity ?? 0
+    product.stockQuantity ?? 0,
+    (product.gallery || []).join("|")
   ]);
 
   const csvContent = [
@@ -103,6 +105,7 @@ export function parseProductsCSV(csvContent: string): Partial<Product>[] {
         backgroundColor: values[10] || undefined,
       } : undefined,
       stockQuantity: values[11] ? parseInt(values[11]) || 0 : 0,
+      gallery: values[12] ? values[12].split("|").map(u => u.trim()).filter(Boolean) : [],
     });
   }
 

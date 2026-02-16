@@ -131,7 +131,7 @@ async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
 /**
  * Save a single validated product row to the database via POST /api/products.
  */
-async function saveProductToDb(row: Partial<Product>, cloudinaryUrl: string) {
+async function saveProductToDb(row: Partial<Product>, cloudinaryUrl: string, galleryUrls: string[]) {
   const stockQty = row.stockQuantity ?? 0;
   const body = {
     name: row.name,
@@ -145,7 +145,7 @@ async function saveProductToDb(row: Partial<Product>, cloudinaryUrl: string) {
     imageAlt: row.image?.alt || row.name || "",
     badgeText: row.badge?.text || null,
     badgeBackgroundColor: row.badge?.backgroundColor || null,
-    galleryImages: [],
+    galleryImages: galleryUrls,
     stockQuantity: stockQty,
     lowStockThreshold: 10,
     trackInventory: stockQty > 0,
@@ -237,6 +237,20 @@ export function BulkImportDialog() {
 
         const cloudinaryUrl = await uploadImageToCloudinary(row.raw.image?.src || "");
 
+        // Phase A2 — Upload gallery images to Cloudinary
+        const rawGallery = row.raw.gallery || [];
+        const galleryUrls: string[] = [];
+        for (const gUrl of rawGallery) {
+          if (gUrl.trim()) {
+            try {
+              const uploaded = await uploadImageToCloudinary(gUrl.trim());
+              galleryUrls.push(uploaded);
+            } catch {
+              galleryUrls.push(gUrl.trim());
+            }
+          }
+        }
+
         // Phase B — Save to DB
         setRows((prev) =>
           prev.map((r) =>
@@ -244,7 +258,7 @@ export function BulkImportDialog() {
           )
         );
 
-        const saved = await saveProductToDb(row.raw, cloudinaryUrl);
+        const saved = await saveProductToDb(row.raw, cloudinaryUrl, galleryUrls);
 
         setRows((prev) =>
           prev.map((r) =>
@@ -266,12 +280,14 @@ export function BulkImportDialog() {
       setImportProgress({ current: i + 1, total: toImport.length });
     }
 
-    // Revalidate so the admin products list updates immediately
+    // Invalidate the products Redis cache so re-fetches get fresh data
     try {
       await fetch("/api/revalidate?path=/admin/products", { method: "POST" });
     } catch {}
 
     setStep("done");
+    // Immediately trigger a client-side refresh so ProductsList re-fetches
+    router.refresh();
   }, [rows]);
 
   // ─── Reset ──────────────────────────────────────────────
@@ -303,6 +319,7 @@ export function BulkImportDialog() {
         price: { regular: 249, sale: 199, currency: "USD" },
         badge: { text: "Sale" },
         stockQuantity: 25,
+        gallery: ["https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800&q=80", "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=800&q=80"],
       },
     ];
     const csv = productsToCSV(sampleProducts);
@@ -401,7 +418,7 @@ export function BulkImportDialog() {
 
             <div className="w-full max-w-md text-xs text-muted-foreground space-y-1">
               <p className="font-medium text-foreground text-sm">Required CSV columns:</p>
-              <p>ID, Name, Company, Category, Description, Regular Price, Sale Price, Currency, Image URL, Badge Text, Badge Color, Stock Quantity</p>
+              <p>ID, Name, Company, Category, Description, Regular Price, Sale Price, Currency, Image URL, Badge Text, Badge Color, Stock Quantity, Gallery Images (pipe-separated)</p>
               <p className="mt-2">
                 <span className="font-medium text-foreground">Valid categories: </span>
                 {VALID_CATEGORIES.join(", ")}
@@ -465,6 +482,9 @@ export function BulkImportDialog() {
                         {row.raw.category} · ${row.raw.price?.regular ?? 0}
                         {row.raw.price?.sale ? ` → $${row.raw.price.sale}` : ""}
                         {" · Stock: "}{row.raw.stockQuantity ?? 0}
+                        {(row.raw.gallery?.length ?? 0) > 0 && (
+                          <>{" · Gallery: "}{row.raw.gallery!.length} image(s)</>
+                        )}
                       </p>
                       {row.errors.length > 0 && (
                         <ul className="mt-1 space-y-0.5 text-destructive text-xs">

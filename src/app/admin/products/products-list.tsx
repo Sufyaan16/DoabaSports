@@ -31,6 +31,12 @@ export function ProductsList({ products: initialProducts, totalCount: initialTot
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
+
+  // Sync server data when initialProducts changes (e.g. after router.refresh())
+  useEffect(() => {
+    setProducts(initialProducts);
+    setTotalCount(initialTotalCount);
+  }, [initialProducts, initialTotalCount]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "name-asc" | "name-desc">("newest");
