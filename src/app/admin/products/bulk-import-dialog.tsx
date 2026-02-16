@@ -132,6 +132,7 @@ async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
  * Save a single validated product row to the database via POST /api/products.
  */
 async function saveProductToDb(row: Partial<Product>, cloudinaryUrl: string) {
+  const stockQty = row.stockQuantity ?? 0;
   const body = {
     name: row.name,
     company: row.company,
@@ -145,9 +146,9 @@ async function saveProductToDb(row: Partial<Product>, cloudinaryUrl: string) {
     badgeText: row.badge?.text || null,
     badgeBackgroundColor: row.badge?.backgroundColor || null,
     galleryImages: [],
-    stockQuantity: 0,
+    stockQuantity: stockQty,
     lowStockThreshold: 10,
-    trackInventory: true,
+    trackInventory: stockQty > 0,
   };
 
   const res = await fetch("/api/products", {
@@ -265,6 +266,11 @@ export function BulkImportDialog() {
       setImportProgress({ current: i + 1, total: toImport.length });
     }
 
+    // Revalidate so the admin products list updates immediately
+    try {
+      await fetch("/api/revalidate?path=/admin/products", { method: "POST" });
+    } catch {}
+
     setStep("done");
   }, [rows]);
 
@@ -296,6 +302,7 @@ export function BulkImportDialog() {
         description: "A high-quality English willow cricket bat with premium handle grip.",
         price: { regular: 249, sale: 199, currency: "USD" },
         badge: { text: "Sale" },
+        stockQuantity: 25,
       },
     ];
     const csv = productsToCSV(sampleProducts);
@@ -350,7 +357,7 @@ export function BulkImportDialog() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Bulk Import Products</DialogTitle>
           <DialogDescription>
@@ -394,7 +401,7 @@ export function BulkImportDialog() {
 
             <div className="w-full max-w-md text-xs text-muted-foreground space-y-1">
               <p className="font-medium text-foreground text-sm">Required CSV columns:</p>
-              <p>ID, Name, Company, Category, Description, Regular Price, Sale Price, Currency, Image URL, Badge Text, Badge Color</p>
+              <p>ID, Name, Company, Category, Description, Regular Price, Sale Price, Currency, Image URL, Badge Text, Badge Color, Stock Quantity</p>
               <p className="mt-2">
                 <span className="font-medium text-foreground">Valid categories: </span>
                 {VALID_CATEGORIES.join(", ")}
@@ -435,7 +442,7 @@ export function BulkImportDialog() {
             <Separator />
 
             {/* Row list */}
-            <ScrollArea className="flex-1 max-h-[40vh] pr-2">
+            <ScrollArea className="h-[50vh] pr-2">
               <div className="space-y-2">
                 {rows.map((row) => (
                   <div
@@ -457,6 +464,7 @@ export function BulkImportDialog() {
                       <p className="text-muted-foreground truncate text-xs">
                         {row.raw.category} · ${row.raw.price?.regular ?? 0}
                         {row.raw.price?.sale ? ` → $${row.raw.price.sale}` : ""}
+                        {" · Stock: "}{row.raw.stockQuantity ?? 0}
                       </p>
                       {row.errors.length > 0 && (
                         <ul className="mt-1 space-y-0.5 text-destructive text-xs">
@@ -514,7 +522,7 @@ export function BulkImportDialog() {
               />
             </div>
 
-            <ScrollArea className="flex-1 max-h-[40vh] pr-2">
+            <ScrollArea className="h-[50vh] pr-2">
               <div className="space-y-2">
                 {rows
                   .filter(
@@ -570,7 +578,7 @@ export function BulkImportDialog() {
 
             {/* Failed rows summary */}
             {rows.filter((r) => r.status === "error").length > 0 && (
-              <ScrollArea className="w-full max-h-[20vh] pr-2">
+              <ScrollArea className="w-full h-[20vh] pr-2">
                 <div className="space-y-2">
                   {rows
                     .filter((r) => r.status === "error")
