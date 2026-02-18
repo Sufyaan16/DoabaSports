@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useUser } from "@stackframe/stack";
 import { checkoutFormSchema } from "@/lib/validations/checkout";
-import { TAX_RATE, TAX_LABEL, SHIPPING_COST, CURRENCY, SHIPPING_COUNTRY, PAYMENT_METHOD } from "@/lib/constants";
+import { TAX_RATE, TAX_LABEL, SHIPPING_COST, CURRENCY, SHIPPING_COUNTRY, DEFAULT_PAYMENT_METHOD } from "@/lib/constants";
 import { z } from "zod";
 
 export default function CheckoutPage() {
@@ -102,7 +102,7 @@ export default function CheckoutPage() {
       currency: CURRENCY,
       status: "pending",
       paymentStatus: "unpaid",
-      paymentMethod: PAYMENT_METHOD,
+      paymentMethod: DEFAULT_PAYMENT_METHOD,
     };
 
     try {

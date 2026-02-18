@@ -39,7 +39,7 @@ export const orderStatusSchema = z.enum(
 
 // Payment status enum
 export const paymentStatusSchema = z.enum(
-  ["unpaid", "paid", "refunded", "failed"],
+  ["unpaid", "paid", "refunded", "failed", "awaiting"],
   {
     message: "Invalid payment status",
   }
@@ -89,6 +89,27 @@ export const updateOrderSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
+// Refund request status enum
+export const refundRequestStatusSchema = z.enum(
+  ["pending", "approved", "rejected", "completed"],
+  { message: "Invalid refund request status" }
+);
+
+// Create refund request schema (customer-facing)
+export const createRefundRequestSchema = z.object({
+  orderNumber: orderNumberSchema,
+  reason: z
+    .string()
+    .min(10, { message: "Please provide at least 10 characters explaining the reason" })
+    .max(1000, { message: "Reason must not exceed 1000 characters" }),
+});
+
+// Admin resolve refund request schema
+export const resolveRefundRequestSchema = z.object({
+  status: z.enum(["approved", "rejected"], { message: "Status must be approved or rejected" }),
+  adminNotes: z.string().max(1000).optional(),
+});
+
 // Type exports
 export type OrderItem = z.infer<typeof orderItemSchema>;
 export type CreateOrder = z.infer<typeof createOrderSchema>;
@@ -96,3 +117,6 @@ export type UpdateOrder = z.infer<typeof updateOrderSchema>;
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
+export type RefundRequestStatus = z.infer<typeof refundRequestStatusSchema>;
+export type CreateRefundRequest = z.infer<typeof createRefundRequestSchema>;
+export type ResolveRefundRequest = z.infer<typeof resolveRefundRequestSchema>;

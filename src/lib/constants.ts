@@ -18,5 +18,9 @@ export const CURRENCY = "USD";
 /** Default shipping country */
 export const SHIPPING_COUNTRY = "USA";
 
+/** Available payment methods */
+export const PAYMENT_METHODS = ["cod", "stripe"] as const;
+export type PaymentMethodType = (typeof PAYMENT_METHODS)[number];
+
 /** Default payment method */
-export const PAYMENT_METHOD = "cod";
+export const DEFAULT_PAYMENT_METHOD: PaymentMethodType = "cod";

@@ -84,6 +84,11 @@ export const orders = pgTable("orders", {
   notes: text("notes"),
   trackingNumber: text("tracking_number"),
   
+  // Stripe Integration
+  stripeSessionId: text("stripe_session_id"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  idempotencyKey: text("idempotency_key").unique(), // Prevent duplicate orders
+  
   // Timestamps
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
@@ -126,7 +131,36 @@ export const wishlists = pgTable(
   })
 );
 
-const schema = { categories, products, orders, carts, wishlists };
+// Refund Requests table
+export const refundRequests = pgTable("refund_requests", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+  orderNumber: text("order_number").notNull(),
+  userId: text("user_id").notNull(), // The user requesting the refund
+  
+  // Request details
+  reason: text("reason").notNull(),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected, completed
+  
+  // Admin response
+  adminNotes: text("admin_notes"),
+  resolvedBy: text("resolved_by"), // Admin user ID who resolved
+  
+  // Stripe refund tracking
+  stripeRefundId: text("stripe_refund_id"),
+  refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }), // null = full refund
+  
+  // Timestamps
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at", { mode: "string" }),
+}, (table) => ({
+  orderIdIdx: index("idx_refund_requests_order_id").on(table.orderId),
+  userIdIdx: index("idx_refund_requests_user_id").on(table.userId),
+  statusIdx: index("idx_refund_requests_status").on(table.status),
+}));
+
+const schema = { categories, products, orders, carts, wishlists, refundRequests };
 
 export default schema;
 
@@ -145,3 +179,6 @@ export type NewCart = typeof carts.$inferInsert;
 
 export type Wishlist = typeof wishlists.$inferSelect;
 export type NewWishlist = typeof wishlists.$inferInsert;
+
+export type RefundRequest = typeof refundRequests.$inferSelect;
+export type NewRefundRequest = typeof refundRequests.$inferInsert;
