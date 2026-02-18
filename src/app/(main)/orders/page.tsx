@@ -23,6 +23,7 @@ const STATUS_COLORS: Record<string, string> = {
 const PAYMENT_STATUS_COLORS: Record<string, string> = {
   paid: "bg-green-500",
   unpaid: "bg-yellow-500",
+  awaiting: "bg-orange-500",
   refunded: "bg-gray-500",
   failed: "bg-red-500",
 };

@@ -21,7 +21,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Package, Truck, MapPin, CreditCard, User, XCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Package, Truck, MapPin, CreditCard, User, XCircle, RotateCcw } from "lucide-react";
 import type { Order } from "@/db/schema";
 import { toast } from "sonner";
 
@@ -37,6 +47,7 @@ const STATUS_COLORS: Record<string, string> = {
 const PAYMENT_STATUS_COLORS: Record<string, string> = {
   paid: "bg-green-500",
   unpaid: "bg-yellow-500",
+  awaiting: "bg-orange-500",
   refunded: "bg-gray-500",
   failed: "bg-red-500",
 };
@@ -49,6 +60,9 @@ export default function CustomerOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [submittingRefund, setSubmittingRefund] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -131,6 +145,52 @@ export default function CustomerOrderDetailPage() {
     }
   };
 
+  const handleRequestRefund = async () => {
+    if (!order || refundReason.trim().length < 10) {
+      toast.error("Please provide a reason with at least 10 characters.");
+      return;
+    }
+
+    setSubmittingRefund(true);
+    try {
+      const response = await fetch("/api/refund-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderNumber: order.orderNumber,
+          reason: refundReason.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Refund Request Submitted", {
+          description: data.message || "Our team will review your request shortly.",
+        });
+        setRefundDialogOpen(false);
+        setRefundReason("");
+      } else {
+        toast.error("Refund Request Failed", {
+          description: data.message || "Failed to submit refund request. Please try again.",
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting refund request:", error);
+      toast.error("Error", {
+        description: "An unexpected error occurred. Please try again.",
+      });
+    } finally {
+      setSubmittingRefund(false);
+    }
+  };
+
+  const canRequestRefund =
+    order &&
+    order.paymentStatus === "paid" &&
+    order.status !== "cancelled" &&
+    order.status !== "refunded";
+
   if (!user || unauthorized) {
     return (
       <div className="container mx-auto px-4 md:px-8 lg:px-20 py-16">
@@ -198,39 +258,91 @@ export default function CustomerOrderDetailPage() {
         </div>
       </div>
 
-      {/* Cancel Order Button */}
-      {(order.status === "pending" || order.status === "processing") && (
-        <div className="mb-6">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={cancelling}>
-                <XCircle className="h-4 w-4 mr-2" />
-                {cancelling ? "Cancelling..." : "Cancel Order"}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Cancel Order?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to cancel this order? This action cannot be undone.
-                  {order.paymentStatus === "paid" && (
-                    <span className="block mt-2 font-semibold">
-                      Note: If this order was paid, inventory will be automatically restored.
-                    </span>
-                  )}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>No, keep order</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleCancelOrder}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Yes, cancel order
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+      {/* Order Actions */}
+      {((order.status === "pending" || order.status === "processing") || canRequestRefund) && (
+        <div className="mb-6 flex gap-3 flex-wrap">
+          {/* Cancel Order Button */}
+          {(order.status === "pending" || order.status === "processing") && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={cancelling}>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {cancelling ? "Cancelling..." : "Cancel Order"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancel Order?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to cancel this order? This action cannot be undone.
+                    {order.paymentStatus === "paid" && (
+                      <span className="block mt-2 font-semibold">
+                        Note: If this order was paid, inventory will be automatically restored.
+                      </span>
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>No, keep order</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleCancelOrder}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Yes, cancel order
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+
+          {/* Request Refund Button */}
+          {canRequestRefund && (
+            <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Request Refund
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Request a Refund</DialogTitle>
+                  <DialogDescription>
+                    Please describe why you&apos;d like a refund for order{" "}
+                    <span className="font-semibold">{order.orderNumber}</span>.
+                    Our team will review your request.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <Textarea
+                    placeholder="Please explain the reason for your refund request (minimum 10 characters)..."
+                    value={refundReason}
+                    onChange={(e) => setRefundReason(e.target.value)}
+                    rows={4}
+                    className="resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {refundReason.trim().length}/10 characters minimum
+                  </p>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setRefundDialogOpen(false)}
+                    disabled={submittingRefund}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleRequestRefund}
+                    disabled={submittingRefund || refundReason.trim().length < 10}
+                  >
+                    {submittingRefund ? "Submitting..." : "Submit Request"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       )}
 
