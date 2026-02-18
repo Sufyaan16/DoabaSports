@@ -120,6 +120,25 @@ export async function POST(request: Request) {
     const validatedData = validationResult.data;
 
     // ========================================
+    // IDEMPOTENCY CHECK
+    // Prevent duplicate orders from double-clicks or retries.
+    // Client sends an Idempotency-Key header (UUID).
+    // ========================================
+    const idempotencyKey = request.headers.get("idempotency-key");
+    if (idempotencyKey) {
+      const [existingOrder] = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.idempotencyKey, idempotencyKey))
+        .limit(1);
+
+      if (existingOrder) {
+        // Return the existing order — this is a duplicate request
+        return NextResponse.json(existingOrder, { status: 201 });
+      }
+    }
+
+    // ========================================
     // SERVER-SIDE ORDER NUMBER GENERATION
     // Never trust client-generated order numbers!
     // ========================================
@@ -188,6 +207,8 @@ export async function POST(request: Request) {
       tax: priceCalculation.tax,
       shippingCost: priceCalculation.shippingCost,
       total: priceCalculation.total,
+      // For Stripe orders, mark as awaiting payment (webhook confirms later)
+      paymentStatus: validatedData.paymentMethod === "stripe" ? "awaiting" as const : validatedData.paymentStatus,
     };
 
     // Check for order number uniqueness
@@ -241,6 +262,7 @@ export async function POST(request: Request) {
         .insert(orders)
         .values({
           ...finalOrderData,
+          idempotencyKey: idempotencyKey || null,
           subtotal: finalOrderData.subtotal.toString(),
           tax: finalOrderData.tax.toString(),
           shippingCost: finalOrderData.shippingCost.toString(),
@@ -248,20 +270,24 @@ export async function POST(request: Request) {
         })
         .returning();
 
-      // 3. Deduct stock
-      for (const item of finalOrderData.items) {
-        if (item.productId) {
-          await db
-            .update(products)
-            .set({
-              stockQuantity: sql`GREATEST(0, ${products.stockQuantity} - ${item.quantity})`,
-            })
-            .where(eq(products.id, item.productId));
+      // 3. Deduct stock — only for COD orders (Stripe orders deduct after payment in webhook)
+      if (validatedData.paymentMethod !== "stripe") {
+        for (const item of finalOrderData.items) {
+          if (item.productId) {
+            await db
+              .update(products)
+              .set({
+                stockQuantity: sql`GREATEST(0, ${products.stockQuantity} - ${item.quantity})`,
+              })
+              .where(eq(products.id, item.productId));
+          }
         }
       }
 
-      // Send order confirmation email
-      try {
+      // Send order confirmation email — only for COD orders
+      // (Stripe orders get confirmation email after payment success in webhook)
+      if (validatedData.paymentMethod !== "stripe") {
+        try {
         const resend = getResend();
         if (resend) {
           await resend.emails.send({
@@ -299,6 +325,7 @@ export async function POST(request: Request) {
         // Log email error but don't fail the order creation
         console.error('❌ Failed to send order confirmation email:', emailError);
       }
+      } // end: COD-only email
 
       return NextResponse.json(newOrder, { status: 201 });
     } catch (insertError: any) {

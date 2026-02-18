@@ -9,6 +9,10 @@ export async function middleware(request: NextRequest) {
 
   // ── CSRF Protection: block cross-origin mutations to /api/* ──
   if (pathname.startsWith("/api")) {
+    // Skip CSRF for Stripe webhooks — they use signature verification instead
+    if (pathname.startsWith("/api/webhooks/stripe")) {
+      return NextResponse.next();
+    }
     const csrfResult = validateCsrf(request);
     if (csrfResult) return csrfResult;
     // API routes pass through — auth is handled inside each route

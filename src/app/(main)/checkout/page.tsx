@@ -12,13 +12,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, ShoppingBag, ArrowLeft } from "lucide-react";
+import { Trash2, ShoppingBag, ArrowLeft, CreditCard, Banknote } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useUser } from "@stackframe/stack";
 import { checkoutFormSchema } from "@/lib/validations/checkout";
 import { TAX_RATE, TAX_LABEL, SHIPPING_COST, CURRENCY, SHIPPING_COUNTRY, DEFAULT_PAYMENT_METHOD } from "@/lib/constants";
+import type { PaymentMethodType } from "@/lib/constants";
 import { z } from "zod";
 
 export default function CheckoutPage() {
@@ -27,6 +28,7 @@ export default function CheckoutPage() {
   const { cart, updateQuantity, removeFromCart, getCartTotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>(DEFAULT_PAYMENT_METHOD);
   
   const cartTotal = getCartTotal();
   const shippingCost = cartTotal > 0 ? SHIPPING_COST : 0;
@@ -35,8 +37,12 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return; // Prevent double-clicks
     setLoading(true);
     setErrors({});
+
+    // Generate idempotency key to prevent duplicate orders on retry
+    const idempotencyKey = crypto.randomUUID();
 
     const formData = new FormData(e.currentTarget);
     const formValues = {
@@ -77,7 +83,7 @@ export default function CheckoutPage() {
 
     const validated = validationResult.data;
 
-    // Prepare order data (order number generated server-side)
+    // Prepare order data
     const orderData = {
       customerName: `${validated.firstName} ${validated.lastName}`,
       customerEmail: validated.email,
@@ -101,21 +107,24 @@ export default function CheckoutPage() {
       total: parseFloat(grandTotal.toFixed(2)),
       currency: CURRENCY,
       status: "pending",
-      paymentStatus: "unpaid",
-      paymentMethod: DEFAULT_PAYMENT_METHOD,
+      paymentStatus: paymentMethod === "stripe" ? "awaiting" : "unpaid",
+      paymentMethod,
     };
 
     try {
+      // Step 1: Create the order
       const response = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         body: JSON.stringify(orderData),
       });
 
       const responseData = await response.json();
 
       if (!response.ok) {
-        // Handle validation errors from server
         if (response.status === 400 && responseData.details) {
           setLoading(false);
           const errorMessages = Object.entries(responseData.details)
@@ -134,6 +143,29 @@ export default function CheckoutPage() {
 
       const order = responseData;
 
+      // Step 2: If Stripe, create checkout session and redirect
+      if (paymentMethod === "stripe") {
+        const checkoutRes = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: order.id }),
+        });
+
+        const checkoutData = await checkoutRes.json();
+
+        if (!checkoutRes.ok) {
+          throw new Error(checkoutData.error || "Failed to create payment session");
+        }
+
+        // Clear cart before redirect — order exists, payment will be confirmed by webhook
+        clearCart();
+
+        // Redirect to Stripe Checkout
+        window.location.href = checkoutData.url;
+        return; // Don't setLoading(false) — user is being redirected
+      }
+
+      // Step 3: COD flow — show success
       setLoading(false);
 
       const { default: Swal } = await import("sweetalert2");
@@ -142,6 +174,7 @@ export default function CheckoutPage() {
         html: `
           <p>Your order <strong>${order.orderNumber}</strong> has been placed successfully!</p>
           <p>Order Total: <strong>$${grandTotal.toFixed(2)}</strong></p>
+          <p>Payment Method: <strong>Cash on Delivery</strong></p>
           <p>You will receive a confirmation email at <strong>${validated.email}</strong></p>
         `,
         icon: "success",
@@ -388,6 +421,69 @@ export default function CheckoutPage() {
               </form>
             </CardContent>
           </Card>
+
+          {/* Payment Method */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Method</CardTitle>
+              <CardDescription>Choose how you&apos;d like to pay</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("cod")}
+                className={`w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-colors text-left ${
+                  paymentMethod === "cod"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  paymentMethod === "cod" ? "bg-primary text-primary-foreground" : "bg-muted"
+                }`}>
+                  <Banknote className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold">Cash on Delivery</p>
+                  <p className="text-sm text-muted-foreground">Pay when you receive your order</p>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  paymentMethod === "cod" ? "border-primary" : "border-muted-foreground/30"
+                }`}>
+                  {paymentMethod === "cod" && (
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                  )}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("stripe")}
+                className={`w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-colors text-left ${
+                  paymentMethod === "stripe"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  paymentMethod === "stripe" ? "bg-primary text-primary-foreground" : "bg-muted"
+                }`}>
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold">Pay with Card</p>
+                  <p className="text-sm text-muted-foreground">Secure payment via Stripe</p>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  paymentMethod === "stripe" ? "border-primary" : "border-muted-foreground/30"
+                }`}>
+                  {paymentMethod === "stripe" && (
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                  )}
+                </div>
+              </button>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Order Summary */}
@@ -423,7 +519,12 @@ export default function CheckoutPage() {
                 size="lg"
                 disabled={loading}
               >
-                {loading ? "Processing..." : "Place Order"}
+                {loading
+                  ? "Processing..."
+                  : paymentMethod === "stripe"
+                    ? `Pay $${grandTotal.toFixed(2)}`
+                    : "Place Order (COD)"
+                }
               </Button>
               <p className="text-xs text-center text-muted-foreground">
                 By placing your order, you agree to our terms and conditions

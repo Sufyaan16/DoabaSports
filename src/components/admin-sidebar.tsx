@@ -8,6 +8,7 @@ import {
   IconInnerShadowTop,
   IconShoppingCart,
   IconUsers,
+  IconReceiptRefund,
 } from "@tabler/icons-react";
 import { useUser } from "@stackframe/stack";
 
@@ -46,6 +47,11 @@ export function AdminSidebar({
       title: "Orders",
       url: "/admin/orders",
       icon: IconShoppingCart,
+    },
+    {
+      title: "Refunds",
+      url: "/admin/refunds",
+      icon: IconReceiptRefund,
     },
     {
       title: "Products",
