@@ -130,13 +130,13 @@ const CONTACT_LINKS: ContactLinks = {
     },
     {
       icon: Phone,
-      text: "+12345678910",
-      link: "+12345678910",
+      text: "+92300 8877676",
+      link: "+92300 8877676",
       type: LINK_TYPES.PHONE_LINK as LinkTypes,
     },
     {
       icon: Clock,
-      text: "Monday - Friday, 9 am - 9 pm",
+      text: "Available 24/7 for support",
       type: LINK_TYPES.NO_LINK as LinkTypes,
     },
   ],

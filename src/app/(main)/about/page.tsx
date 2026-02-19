@@ -255,9 +255,9 @@ export default function AboutPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-primary font-semibold tracking-widest uppercase text-sm mb-4"
+            className="text-white font-semibold tracking-widest uppercase text-sm mb-4"
           >
-            EST. 1995 · Sialkot, Pakistan
+            EST. 2010 · Rahim Yar Khan, Pakistan
           </motion.p>
 
           <motion.h1
@@ -268,7 +268,7 @@ export default function AboutPage() {
           >
             Crafting Cricket
             <br />
-            <span className="text-primary">Excellence</span>
+            <span className="text-white">Excellence</span>
           </motion.h1>
 
           <motion.p
@@ -277,7 +277,7 @@ export default function AboutPage() {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="text-lg md:text-xl text-white/80 max-w-xl mb-8"
           >
-            From the heart of Sialkot to cricket grounds worldwide — premium
+            From the heart of Pakistan to cricket grounds worldwide — premium
             bats, gear & accessories built by craftsmen who live and breathe
             cricket.
           </motion.p>

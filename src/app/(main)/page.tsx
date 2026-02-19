@@ -56,9 +56,9 @@ export default async function Home() {
       <Hero3 className="mx-20"/>
       <TrustMarquee />
       <StatsCounter />
+      <ProductCarousel products={transformedProducts} />
       <InteractiveCategories />
       <BestSellers products={transformedProducts} />
-      <ProductCarousel products={transformedProducts} />
       <TestimonialsCarousel />
       <InstagramFeed />
     </>
