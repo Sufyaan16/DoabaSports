@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/db/index";
 import { refundRequests, orders, products } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { checkRateLimit, getRateLimitIdentifier, getIpAddress } from "@/lib/rate-limit";
 import { resolveRefundRequestSchema } from "@/lib/validations/order";
@@ -124,7 +124,7 @@ export async function PATCH(
     // If paid via Stripe, issue the refund through Stripe
     if (order.paymentMethod === "stripe" && order.stripePaymentIntentId) {
       try {
-        const refund = await stripe.refunds.create({
+        const refund = await getStripe().refunds.create({
           payment_intent: order.stripePaymentIntentId,
           amount: Math.round(refundAmount * 100), // cents
           reason: "requested_by_customer",

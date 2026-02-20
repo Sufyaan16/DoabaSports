@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { createContext, useContext } from "react";
 
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 
 const PriceContext = createContext<{ onSale?: boolean }>({ onSale: false });
 export const usePriceContext = () => useContext(PriceContext);
@@ -26,19 +27,6 @@ export type PriceType = {
   regular: number;
   sale?: number;
 };
-
-const formatterCache = new Map<string, Intl.NumberFormat>();
-
-function formatCurrency(value: number, currency = "USD", locale = "en-US") {
-  const key = `${locale}-${currency}`;
-  if (!formatterCache.has(key)) {
-    formatterCache.set(
-      key,
-      new Intl.NumberFormat(locale, { style: "currency", currency }),
-    );
-  }
-  return formatterCache.get(key)!.format(value);
-}
 
 const Price = ({ className, children, onSale }: PriceProps) => {
   return (

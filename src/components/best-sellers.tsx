@@ -40,8 +40,9 @@ const cardVariants = {
   },
 };
 
-function formatPrice(price: number, currency: string = "Rs") {
-  return `${currency} ${price.toLocaleString()}`;
+function formatPrice(price: number, currency: string = "USD") {
+  const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency });
+  return fmt.format(price);
 }
 
 export function BestSellers({ className, products }: BestSellersProps) {

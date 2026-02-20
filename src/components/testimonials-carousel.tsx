@@ -57,7 +57,7 @@ const testimonials: Testimonial[] = [
     id: 4,
     name: "Bilal Ahmed",
     location: "Faisalabad",
-    avatar: "https://images.unsplash.com/photo-1599566150163-29194dcabd36?w=100&q=80",
+    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&q=80",
     rating: 5,
     review: "COD option made it so easy to order. The bat arrived in perfect condition. Great grains and fantastic ping. 100% genuine product!",
     productBought: "Elite Series Bat",

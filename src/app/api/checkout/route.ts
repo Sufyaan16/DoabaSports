@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import db from "@/db/index";
 import { orders } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     // Prevent creating duplicate sessions — if a session already exists, reuse it
     if (order.stripeSessionId) {
       try {
-        const existingSession = await stripe.checkout.sessions.retrieve(order.stripeSessionId);
+        const existingSession = await getStripe().checkout.sessions.retrieve(order.stripeSessionId);
         // If session is still open, return it
         if (existingSession.status === "open") {
           return NextResponse.json({
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
       line_items: lineItems,

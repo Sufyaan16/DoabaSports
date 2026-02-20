@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Package, Eye, ShoppingBag } from "lucide-react";
 import type { Order } from "@/db/schema";
+import { formatCurrency } from "@/lib/format";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-500",
@@ -173,7 +174,7 @@ export default function CustomerOrdersPage() {
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">
                       {order.items.length} item(s) • Total: <span className="font-semibold text-foreground">
-                        ${parseFloat(order.total).toFixed(2)}
+                        {formatCurrency(parseFloat(order.total), order.currency)}
                       </span>
                     </p>
                     {order.trackingNumber && (

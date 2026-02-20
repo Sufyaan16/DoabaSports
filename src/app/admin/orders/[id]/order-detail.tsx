@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatCurrency } from "@/lib/format";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -269,8 +270,7 @@ export function OrderDetail({ order: initialOrder }: OrderDetailProps) {
                         Quantity: {item.quantity}
                       </p>
                       <p className="text-sm">
-                        ${item.price.toFixed(2)} × {item.quantity} = $
-                        {item.total.toFixed(2)}
+                        {formatCurrency(item.price, order.currency)} × {item.quantity} = {formatCurrency(item.total, order.currency)}
                       </p>
                     </div>
                   </div>
@@ -282,21 +282,21 @@ export function OrderDetail({ order: initialOrder }: OrderDetailProps) {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal:</span>
-                  <span>${parseFloat(order.subtotal).toFixed(2)}</span>
+                  <span>{formatCurrency(parseFloat(order.subtotal), order.currency)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Tax:</span>
-                  <span>${parseFloat(order.tax).toFixed(2)}</span>
+                  <span>{formatCurrency(parseFloat(order.tax), order.currency)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Shipping:</span>
-                  <span>${parseFloat(order.shippingCost).toFixed(2)}</span>
+                  <span>{formatCurrency(parseFloat(order.shippingCost), order.currency)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total:</span>
                   <span>
-                    {order.currency} ${parseFloat(order.total).toFixed(2)}
+                    {formatCurrency(parseFloat(order.total), order.currency)}
                   </span>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Truck, Shield, RotateCcw } from "lucide-react";
 import type { Product } from "@/lib/data/products";
+import { formatCurrency } from "@/lib/format";
 
 interface ProductDetailClientProps {
   product: Product;
@@ -123,18 +124,18 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               
               <div className="flex items-baseline gap-3 mb-4">
                 <span className="text-4xl font-bold">
-                  {product.price.currency} ${displayPrice.toFixed(2)}
+                  {formatCurrency(displayPrice, product.price.currency)}
                 </span>
                 {hasDiscount && (
                   <span className="text-2xl text-muted-foreground line-through">
-                    ${product.price.regular.toFixed(2)}
+                    {formatCurrency(product.price.regular, product.price.currency)}
                   </span>
                 )}
               </div>
 
               {hasDiscount && (
                 <Badge variant="destructive" className="mb-4">
-                  Save ${(product.price.regular - displayPrice).toFixed(2)}
+                  Save {formatCurrency(product.price.regular - displayPrice, product.price.currency)}
                 </Badge>
               )}
             </div>

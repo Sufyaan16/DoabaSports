@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { formatCurrency } from "@/lib/format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -377,12 +378,12 @@ export default function CustomerOrderDetailPage() {
                           Quantity: {item.quantity}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Price: ${item.price.toFixed(2)}
+                          Price: {formatCurrency(item.price, order.currency)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold">
-                          ${item.total.toFixed(2)}
+                          {formatCurrency(item.total, order.currency)}
                         </p>
                       </div>
                     </div>
@@ -463,20 +464,20 @@ export default function CustomerOrderDetailPage() {
             <CardContent className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-medium">${parseFloat(order.subtotal).toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(parseFloat(order.subtotal), order.currency)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tax</span>
-                <span className="font-medium">${parseFloat(order.tax).toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(parseFloat(order.tax), order.currency)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping</span>
-                <span className="font-medium">${parseFloat(order.shippingCost).toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(parseFloat(order.shippingCost), order.currency)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
-                <span>${parseFloat(order.total).toFixed(2)}</span>
+                <span>{formatCurrency(parseFloat(order.total), order.currency)}</span>
               </div>
             </CardContent>
           </Card>

@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Price, PriceValue } from "@/components/price";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +96,7 @@ export function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <a
+    <Link
       href={`/products/${product.id}`}
       className="block"
     >
@@ -204,6 +205,6 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         </CardContent>
       </Card>
-    </a>
+    </Link>
   );
 }

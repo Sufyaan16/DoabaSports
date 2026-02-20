@@ -24,7 +24,7 @@ export default function NotFound() {
 
           {/* Friendly explanation */}
           <p className="text-muted-foreground mb-8 leading-relaxed">
-            The wiki page you're looking for doesn't exist. It might have been
+            The page you're looking for doesn't exist. It might have been
             moved, deleted, or you entered the wrong URL.
           </p>
 
@@ -32,7 +32,7 @@ export default function NotFound() {
           <Link href="/">
             <Button className="w-full" size="lg">
               <Home className="h-4 w-4 mr-2" />
-              Back to Wiki Home
+              Back to Home
             </Button>
           </Link>
         </CardContent>

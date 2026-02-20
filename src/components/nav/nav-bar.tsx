@@ -56,11 +56,11 @@ export default async function NavBar() {
           <GlobalSearchBar />
         </div>
 
-        {/* Wishlist Icon */}
-        <WishlistIcon />
-
-        {/* Cart Icon */}
-        <CartIcon />
+        {/* Wishlist & Cart Icons */}
+        <div className="flex items-center gap-1">
+          <WishlistIcon />
+          <CartIcon />
+        </div>
 
         <NavigationMenu>
           <NavigationMenuList className="flex items-center gap-2">

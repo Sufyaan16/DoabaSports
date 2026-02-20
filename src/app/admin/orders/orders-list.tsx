@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { formatCurrency } from "@/lib/format";
 import {
   Select,
   SelectContent,
@@ -298,7 +299,7 @@ export function OrdersList({ orders: initialOrders }: OrdersListProps) {
                   </TableCell>
                   <TableCell>{order.items.length} item(s)</TableCell>
                   <TableCell>
-                    {order.currency} ${parseFloat(order.total).toFixed(2)}
+                    {formatCurrency(parseFloat(order.total), order.currency)}
                   </TableCell>
                   <TableCell>
                     <Select

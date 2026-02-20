@@ -6,7 +6,7 @@ import { ALL_PRODUCTS } from "@/lib/data/products";
 // Sample order data
 const SAMPLE_ORDERS = [
   {
-    orderNumber: "ORD-2026-0001",
+    orderNumber: "ORD-2026-000001",
     customerName: "John Doe",
     customerEmail: "john.doe@example.com",
     customerPhone: "+1-555-0101",
@@ -45,7 +45,7 @@ const SAMPLE_ORDERS = [
     trackingNumber: "TRK123456789",
   },
   {
-    orderNumber: "ORD-2026-0002",
+    orderNumber: "ORD-2026-000002",
     customerName: "Jane Smith",
     customerEmail: "jane.smith@example.com",
     customerPhone: "+1-555-0102",
@@ -75,7 +75,7 @@ const SAMPLE_ORDERS = [
     trackingNumber: "TRK987654321",
   },
   {
-    orderNumber: "ORD-2026-0003",
+    orderNumber: "ORD-2026-000003",
     customerName: "Mike Johnson",
     customerEmail: "mike.j@example.com",
     customerPhone: "+1-555-0103",
@@ -112,7 +112,7 @@ const SAMPLE_ORDERS = [
     paymentMethod: "credit_card",
   },
   {
-    orderNumber: "ORD-2026-0004",
+    orderNumber: "ORD-2026-000004",
     customerName: "Sarah Williams",
     customerEmail: "sarah.w@example.com",
     customerPhone: "+1-555-0104",
@@ -142,7 +142,7 @@ const SAMPLE_ORDERS = [
     notes: "Cash on delivery",
   },
   {
-    orderNumber: "ORD-2026-0005",
+    orderNumber: "ORD-2026-000005",
     customerName: "David Brown",
     customerEmail: "david.brown@example.com",
     customerPhone: "+1-555-0105",
