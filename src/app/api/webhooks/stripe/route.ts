@@ -5,6 +5,8 @@ import { orders, products } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { getResend } from "@/lib/resend";
 import OrderConfirmationEmail from "@/emails/order-confirmation";
+import { invalidateNamespace } from "@/lib/cache";
+import { Redis } from "@upstash/redis";
 import type Stripe from "stripe";
 
 /**
@@ -21,8 +23,33 @@ import type Stripe from "stripe";
 // Disable Next.js body parsing — we need the raw body for Stripe signature verification
 export const dynamic = "force-dynamic";
 
-// In-memory set to track processed webhook event IDs (prevents duplicate processing)
-const processedEventIds = new Set<string>();
+// Redis-backed webhook dedup (works across serverless instances)
+let redis: Redis | null = null;
+function getRedis(): Redis | null {
+  if (!redis && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+  }
+  return redis;
+}
+
+/**
+ * Check if a webhook event has already been processed.
+ * Uses Redis SET NX with 48h TTL — returns true if this is a NEW event.
+ */
+async function markEventProcessed(eventId: string): Promise<boolean> {
+  const r = getRedis();
+  if (!r) return true; // If Redis unavailable, allow processing (DB-level check is the fallback)
+  try {
+    // SET NX returns "OK" if key was set (new event), null if key already exists (duplicate)
+    const result = await r.set(`stripe:webhook:${eventId}`, "1", { nx: true, ex: 48 * 60 * 60 });
+    return result === "OK";
+  } catch {
+    return true; // Fail open — DB-level idempotency check is the backstop
+  }
+}
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -60,21 +87,11 @@ export async function POST(request: Request) {
 
   console.log(`📨 Stripe webhook received: ${event.type} (${event.id})`);
 
-  // Track processed event IDs to prevent duplicate processing
-  // (Stripe may retry delivery of the same event)
-  if (processedEventIds.has(event.id)) {
+  // Check for duplicate events using Redis (works across serverless instances)
+  const isNewEvent = await markEventProcessed(event.id);
+  if (!isNewEvent) {
     console.log(`ℹ️ Duplicate webhook event ${event.id} — skipping`);
     return NextResponse.json({ received: true, duplicate: true });
-  }
-  processedEventIds.add(event.id);
-
-  // Limit set size to prevent memory leaks (keep last 1000 events)
-  if (processedEventIds.size > 1000) {
-    const iterator = processedEventIds.values();
-    for (let i = 0; i < 500; i++) {
-      const val = iterator.next().value;
-      if (val) processedEventIds.delete(val);
-    }
   }
 
   try {
@@ -161,6 +178,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   console.log(`✅ Stock deducted for order ${orderNumber}`);
+
+  // Invalidate product cache after stock deduction
+  await invalidateNamespace("products");
 
   // Send confirmation email
   try {

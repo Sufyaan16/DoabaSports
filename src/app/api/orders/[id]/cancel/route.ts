@@ -10,6 +10,7 @@ import {
   handleUnexpectedError,
   ErrorCode,
 } from "@/lib/errors";
+import { invalidateNamespace } from "@/lib/cache";
 
 /**
  * POST /api/orders/[id]/cancel
@@ -128,6 +129,9 @@ export async function POST(
       })
       .where(eq(orders.id, orderId))
       .returning();
+
+    // Invalidate product cache after stock restoration
+    await invalidateNamespace("products");
 
     return createSuccessResponse(
       {

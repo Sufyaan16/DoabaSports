@@ -12,6 +12,7 @@ import {
   handleUnexpectedError,
   ErrorCode,
 } from "@/lib/errors";
+import { invalidateNamespace } from "@/lib/cache";
 
 /**
  * PATCH /api/admin/refund-requests/[id]
@@ -176,6 +177,9 @@ export async function PATCH(
         updatedAt: now,
       })
       .where(eq(orders.id, order.id));
+
+    // Invalidate product cache after stock restoration
+    await invalidateNamespace("products");
 
     // Update refund request
     const [updated] = await db

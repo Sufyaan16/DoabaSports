@@ -10,6 +10,7 @@ import { stackServerApp } from "@/stack/server";
 import { CartIcon } from "@/components/cart-icon";
 import { GlobalSearchBar } from "@/components/global-search-bar";
 import { WishlistIcon } from "@/components/wishlist-icon";
+import { MobileNav } from "@/components/nav/mobile-nav";
 
 export default async function NavBar() {
   const user = await stackServerApp.getUser();
@@ -25,7 +26,9 @@ export default async function NavBar() {
   return (
     <nav className="w-full border-b bg-white/80 backdrop-blur supports-backdrop-filter:bg-white/60 sticky top-0 z-50">
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
-        <div className="flex items-center gap-8">
+        {/* Mobile hamburger + Brand */}
+        <div className="flex items-center gap-2 lg:gap-8">
+          <MobileNav isAuthenticated={!!user} />
           <Link
             href="/"
             className="font-bold text-xl tracking-tight text-gray-900 whitespace-nowrap"
@@ -33,7 +36,7 @@ export default async function NavBar() {
             Doaba Sports
           </Link>
 
-          {/* Navigation Links */}
+          {/* Navigation Links - Desktop only */}
           <div className="hidden lg:flex items-center gap-8 ml-15 text-md">
             {navLinks.map((link) => (
               <Link
@@ -48,7 +51,7 @@ export default async function NavBar() {
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar - Desktop only */}
         <div className="hidden md:flex flex-1 max-w-md">
           <GlobalSearchBar />
         </div>

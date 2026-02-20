@@ -17,6 +17,7 @@ import {
   handleUnexpectedError,
   ErrorCode,
 } from "@/lib/errors";
+import { invalidateNamespace } from "@/lib/cache";
 
 // GET all orders (with pagination)
 export async function GET(request: NextRequest) {
@@ -282,6 +283,11 @@ export async function POST(request: Request) {
               .where(eq(products.id, item.productId));
           }
         }
+      }
+
+      // Invalidate product cache after stock deduction
+      if (validatedData.paymentMethod !== "stripe") {
+        await invalidateNamespace("products");
       }
 
       // Send order confirmation email — only for COD orders
