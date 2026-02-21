@@ -63,7 +63,7 @@ export default async function NavBar() {
         </div>
 
         <NavigationMenu>
-          <NavigationMenuList className="flex items-center gap-2">
+          <NavigationMenuList className="flex items-center gap-2 ">
             {user ? (
               <NavigationMenuItem>
                 <UserButton />
