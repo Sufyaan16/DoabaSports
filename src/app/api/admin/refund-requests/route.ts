@@ -10,6 +10,8 @@ import {
   ErrorCode,
 } from "@/lib/errors";
 
+const VALID_REFUND_STATUSES = ["pending", "approved", "rejected", "completed"] as const;
+
 /**
  * GET /api/admin/refund-requests
  * List all refund requests (admin only)
@@ -30,6 +32,15 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get("status"); // pending, approved, rejected, completed
+
+    // Validate status against allowed values
+    if (status && !VALID_REFUND_STATUSES.includes(status as any)) {
+      return createErrorResponse({
+        code: ErrorCode.INVALID_QUERY_PARAMS,
+        message: `Invalid status filter. Allowed values: ${VALID_REFUND_STATUSES.join(", ")}`,
+      });
+    }
+
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50")));
     const offset = (page - 1) * limit;

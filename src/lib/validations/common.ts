@@ -34,7 +34,11 @@ export const stateSchema = z
 
 export const zipCodeSchema = z
   .string()
-  .regex(/^\d{5}(-\d{4})?$/, { message: "Invalid ZIP code format (e.g., 12345 or 12345-6789)" });
+  .min(3, { message: "ZIP/Postal code must be at least 3 characters" })
+  .max(10, { message: "ZIP/Postal code must not exceed 10 characters" })
+  .regex(/^[A-Za-z0-9\s\-]{3,10}$/, {
+    message: "Invalid ZIP/Postal code format",
+  });
 
 export const currencySchema = z.enum(["USD", "EUR", "GBP", "CAD"], {
   message: "Invalid currency",

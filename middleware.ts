@@ -20,8 +20,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Initialize metadata for authenticated users
+  let user: Awaited<ReturnType<typeof stackServerApp.getUser>> | null = null;
   try {
-    const user = await stackServerApp.getUser();
+    user = await stackServerApp.getUser();
     
     if (user) {
       // Check if metadata needs initialization
@@ -55,10 +56,7 @@ export async function middleware(request: NextRequest) {
   // Check if the route is an admin route
   if (pathname.startsWith("/admin")) {
     try {
-      // Get the current user from StackAuth
-      const user = await stackServerApp.getUser();
-
-      // If no user is logged in, redirect to sign-in page
+      // Reuse the user we already fetched above
       if (!user) {
         const signInUrl = new URL("/handler/sign-in", request.url);
         signInUrl.searchParams.set("after_auth_return_to", pathname);

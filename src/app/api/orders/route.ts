@@ -3,7 +3,7 @@ import db from "@/db/index";
 import { orders, products } from "@/db/schema";
 import { desc, eq, sql, and, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { createOrderSchema } from "@/lib/validations/order";
+import { createOrderSchema, orderStatusSchema } from "@/lib/validations/order";
 import { getResend } from "@/lib/resend";
 import OrderConfirmationEmail from "@/emails/order-confirmation";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
@@ -41,6 +41,17 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const status = searchParams.get("status");
     
+    // Validate status against allowed enum values
+    if (status) {
+      const statusValidation = orderStatusSchema.safeParse(status);
+      if (!statusValidation.success) {
+        return createErrorResponse({
+          code: ErrorCode.INVALID_QUERY_PARAMS,
+          message: `Invalid status filter. Allowed values: ${orderStatusSchema.options.join(", ")}`,
+        });
+      }
+    }
+
     // Validate pagination params
     if (page < 1 || limit < 1 || limit > 100) {
       return createErrorResponse({

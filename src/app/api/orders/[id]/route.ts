@@ -4,6 +4,7 @@ import { orders, products } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { updateOrderSchema } from "@/lib/validations/order";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
+import { checkRateLimit, getRateLimitIdentifier, getIpAddress } from "@/lib/rate-limit";
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -21,6 +22,14 @@ export async function GET(
   const authResult = await requireAuth();
   if (!authResult.success) {
     return authResult.error;
+  }
+
+  // Rate limit - moderate (60/min)
+  const ipAddress = getIpAddress(request);
+  const rateLimitId = getRateLimitIdentifier(authResult.userId, ipAddress);
+  const rateLimitResult = await checkRateLimit(rateLimitId, "moderate");
+  if (rateLimitResult) {
+    return rateLimitResult;
   }
 
   try {
@@ -80,6 +89,14 @@ export async function PUT(
     return authResult.error;
   }
 
+  // Rate limit - strict (10/min for mutations)
+  const ipAddress = getIpAddress(request);
+  const rateLimitId = getRateLimitIdentifier(authResult.userId, ipAddress);
+  const rateLimitResult = await checkRateLimit(rateLimitId, "strict");
+  if (rateLimitResult) {
+    return rateLimitResult;
+  }
+
   try {
     const { id } = await params;
     const orderId = Number(id);
@@ -135,6 +152,14 @@ export async function DELETE(
   const authResult = await requireAdmin();
   if (!authResult.success) {
     return authResult.error;
+  }
+
+  // Rate limit - strict (10/min for mutations)
+  const ipAddress = getIpAddress(request);
+  const rateLimitId = getRateLimitIdentifier(authResult.userId, ipAddress);
+  const rateLimitResult = await checkRateLimit(rateLimitId, "strict");
+  if (rateLimitResult) {
+    return rateLimitResult;
   }
 
   try {

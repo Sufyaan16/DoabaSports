@@ -1,7 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { stackServerApp } from "@/stack/server";
+import { checkRateLimit, getIpAddress } from "@/lib/rate-limit";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Rate limit - strict (10/min) to prevent abuse
+  const ipAddress = getIpAddress(request);
+  const rateLimitResult = await checkRateLimit(`ip:${ipAddress}`, "strict");
+  if (rateLimitResult) return rateLimitResult;
+
   try {
     const user = await stackServerApp.getUser();
 

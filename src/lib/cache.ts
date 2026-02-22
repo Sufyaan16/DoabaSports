@@ -9,7 +9,21 @@ const CACHE_TTL = {
   CATEGORIES: 60 * 15, // 15 minutes
   PRODUCT_DETAIL: 60 * 10, // 10 minutes
   USER_DATA: 60 * 2, // 2 minutes
+  DEFAULT: 60 * 5, // 5 minutes fallback
 } as const;
+
+/**
+ * Map namespace strings to their appropriate TTL
+ */
+const NAMESPACE_TTL: Record<string, number> = {
+  products: CACHE_TTL.PRODUCTS,
+  categories: CACHE_TTL.CATEGORIES,
+  "product-detail": CACHE_TTL.PRODUCT_DETAIL,
+  "product_detail": CACHE_TTL.PRODUCT_DETAIL,
+  user: CACHE_TTL.USER_DATA,
+  users: CACHE_TTL.USER_DATA,
+  "user-data": CACHE_TTL.USER_DATA,
+};
 
 /**
  * Initialize Redis client for caching
@@ -98,7 +112,7 @@ export async function setCache<T>(
 
   try {
     const cacheKey = getCacheKey(namespace, key);
-    const cacheTTL = ttl || CACHE_TTL.PRODUCTS; // Default TTL
+    const cacheTTL = ttl || NAMESPACE_TTL[namespace] || CACHE_TTL.DEFAULT;
     
     await redis!.set(cacheKey, value, { ex: cacheTTL });
     logger.debug("Cache SET", { key: cacheKey, ttl: cacheTTL });

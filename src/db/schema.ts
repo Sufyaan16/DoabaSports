@@ -10,7 +10,9 @@ export const categories = pgTable("categories", {
   image: text("image").notNull(),
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
-});
+}, (table) => ({
+  nameIdx: index("idx_categories_name").on(table.name),
+}));
 
 // Products Table
 export const products = pgTable("products", {
@@ -38,6 +40,7 @@ export const products = pgTable("products", {
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
 }, (table) => ({
   categoryIdx: index("idx_products_category").on(table.category),
+  nameIdx: index("idx_products_name").on(table.name),
 }));
 
 // Orders Table
@@ -128,6 +131,7 @@ export const wishlists = pgTable(
   },
   (table) => ({
     uniqueUserProduct: unique().on(table.userId, table.productId),
+    userIdIdx: index("idx_wishlists_user_id").on(table.userId),
   })
 );
 

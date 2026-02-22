@@ -5,7 +5,8 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { stackServerApp } from "@/stack/server";
 import { requireAuth } from "@/lib/auth-helpers";
 import { checkRateLimit, getRateLimitIdentifier, getIpAddress } from "@/lib/rate-limit";
-import { handleUnexpectedError, createErrorResponse, ErrorCode } from "@/lib/errors";
+import { handleUnexpectedError, createErrorResponse, handleZodError, ErrorCode } from "@/lib/errors";
+import { addToWishlistSchema } from "@/lib/validations/wishlist";
 
 // GET - Fetch user's wishlist (with pagination)
 export async function GET(req: NextRequest) {
@@ -135,14 +136,13 @@ export async function POST(req: NextRequest) {
       });
     }
     
-    const { productId, notes } = body;
-
-    if (!productId) {
-      return createErrorResponse({
-        code: ErrorCode.VALIDATION_FAILED,
-        message: "Product ID is required",
-      });
+    // Validate request body with Zod
+    const validationResult = addToWishlistSchema.safeParse(body);
+    if (!validationResult.success) {
+      return handleZodError(validationResult.error);
     }
+
+    const { productId, notes } = validationResult.data;
 
     // Check if product exists
     const product = await db
