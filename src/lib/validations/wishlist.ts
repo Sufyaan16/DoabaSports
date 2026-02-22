@@ -3,7 +3,7 @@ import { z } from "zod";
 // Wishlist POST body schema
 export const addToWishlistSchema = z.object({
   productId: z
-    .number({ required_error: "Product ID is required" })
+    .number({ error: "Product ID is required" })
     .int({ message: "Product ID must be an integer" })
     .positive({ message: "Product ID must be positive" }),
   notes: z

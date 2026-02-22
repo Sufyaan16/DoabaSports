@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
             console.error("❌ Invalid user metadata:", validation.error.flatten().fieldErrors);
           } else {
             await user.update({
-              clientReadOnlyMetadata: newMetadata
+              clientMetadata: newMetadata
             });
             console.log("✅ Initialized metadata for user:", user.primaryEmail);
           }
