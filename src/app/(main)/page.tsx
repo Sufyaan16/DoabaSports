@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Doaba Sports — Premium Cricket Equipment & Accessories",
   description:
-    "Shop premium cricket bats, equipment, accessories, and apparel at Doaba Sports. Free COD shipping and dedicated customer support.",
+    " Shop premium cricket bats, equipment, accessories, and apparel at Doaba Sports. Free COD shipping and dedicated customer support.",
 };
 
 export default async function Home() {
