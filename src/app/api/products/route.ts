@@ -18,11 +18,21 @@ import { getOrSet, CACHE_TTL, invalidateNamespace } from "@/lib/cache";
 
 // GET all products (with pagination and filters)
 export async function GET(request: NextRequest) {
-  // Rate limit - relaxed (100/min for browsing products)
-  const ipAddress = getIpAddress(request);
-  const rateLimitResult = await checkRateLimit(`ip:${ipAddress}`, "relaxed");
-  if (rateLimitResult) {
-    return rateLimitResult;
+  const isAdminRequest = request.headers.get("x-admin-products-request") === "1";
+
+  // Public browsing requests are rate limited.
+  // Admin table requests use authenticated fast-path to avoid extra Redis latency.
+  if (isAdminRequest) {
+    const authResult = await requireAdmin();
+    if (!authResult.success) {
+      return authResult.error;
+    }
+  } else {
+    const ipAddress = getIpAddress(request);
+    const rateLimitResult = await checkRateLimit(`ip:${ipAddress}`, "relaxed");
+    if (rateLimitResult) {
+      return rateLimitResult;
+    }
   }
 
   try {
@@ -45,14 +55,7 @@ export async function GET(request: NextRequest) {
 
     const { category, search, page, limit, sortBy } = queryValidation.data;
     
-    // Create cache key based on query parameters
-    const cacheKey = `list:${category || 'all'}:${search || 'none'}:${page}:${limit}:${sortBy}`;
-    
-    // Try to get from cache
-    const cachedResult = await getOrSet(
-      "products",
-      cacheKey,
-      async () => {
+    const queryProducts = async () => {
         // Calculate offset
         const offset = (page - 1) * limit;
 
@@ -155,7 +158,25 @@ export async function GET(request: NextRequest) {
             hasPrevPage,
           }
         };
-      },
+    };
+
+    if (isAdminRequest) {
+      const result = await queryProducts();
+      return NextResponse.json(result, {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
+    // Create cache key based on query parameters
+    const cacheKey = `list:${category || 'all'}:${search || 'none'}:${page}:${limit}:${sortBy}`;
+
+    // Public traffic still benefits from Redis cache.
+    const cachedResult = await getOrSet(
+      "products",
+      cacheKey,
+      queryProducts,
       CACHE_TTL.PRODUCTS
     );
 

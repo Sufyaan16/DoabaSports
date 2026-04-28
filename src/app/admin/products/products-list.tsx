@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";import Image from "next/image";import Link from "next/link";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,6 +33,7 @@ export function ProductsList({ products: initialProducts, totalCount: initialTot
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
+  const didMountRef = useRef(false);
 
   // Sync server data when initialProducts changes (e.g. after router.refresh())
   useEffect(() => {
@@ -70,7 +73,11 @@ export function ProductsList({ products: initialProducts, totalCount: initialTot
         params.set("search", search);
       }
 
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetch(`/api/products?${params.toString()}`, {
+        headers: {
+          "x-admin-products-request": "1",
+        },
+      });
       const data = await response.json();
       
       if (response.ok && data.products && data.pagination) {
@@ -87,8 +94,13 @@ export function ProductsList({ products: initialProducts, totalCount: initialTot
     }
   }, [itemsPerPage]);
 
-  // Fetch when filters change
+  // Skip initial fetch because server already provided page 1 + newest data.
+  // Only fetch after user changes filters/sort.
   useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
     fetchProducts(1, debouncedSearchQuery, sortBy);
   }, [debouncedSearchQuery, sortBy, fetchProducts]);
 
