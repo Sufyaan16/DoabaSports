@@ -6,6 +6,7 @@ import { createProductSchema, productQuerySchema } from "@/lib/validations/produ
 import { ZodError } from "zod";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { checkRateLimit, getRateLimitIdentifier, getIpAddress } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -18,22 +19,20 @@ import { getOrSet, CACHE_TTL, invalidateNamespace } from "@/lib/cache";
 
 // GET all products (with pagination and filters)
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  const timings: Record<string, number> = {};
+  
   const isAdminRequest = request.headers.get("x-admin-products-request") === "1";
 
-  // Public browsing requests are rate limited.
-  // Admin table requests use authenticated fast-path to avoid extra Redis latency.
+  // Admin requests use authenticated fast-path
   if (isAdminRequest) {
     const authResult = await requireAdmin();
     if (!authResult.success) {
       return authResult.error;
     }
-  } else {
-    const ipAddress = getIpAddress(request);
-    const rateLimitResult = await checkRateLimit(`ip:${ipAddress}`, "relaxed");
-    if (rateLimitResult) {
-      return rateLimitResult;
-    }
   }
+  // Public browsing: skip rate-limit for GET (it's a read, not a mutation).
+  // Rate limiting is better applied at the firewall/CDN level for DDoS protection.
 
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -161,7 +160,18 @@ export async function GET(request: NextRequest) {
     };
 
     if (isAdminRequest) {
+      const dbStart = Date.now();
       const result = await queryProducts();
+      timings.dbMs = Date.now() - dbStart;
+      logger.debug("Admin products GET", {
+        page,
+        limit,
+        sortBy,
+        hasCategory: !!category,
+        hasSearch: !!search,
+        timings,
+        totalMs: Date.now() - startTime,
+      });
       return NextResponse.json(result, {
         headers: {
           "Cache-Control": "no-store",
@@ -170,17 +180,78 @@ export async function GET(request: NextRequest) {
     }
 
     // Create cache key based on query parameters
-    const cacheKey = `list:${category || 'all'}:${search || 'none'}:${page}:${limit}:${sortBy}`;
+    // For public traffic: use simplified cache key that groups similar requests
+    // Category + sort + pagination only (no search, since search results vary per query)
+    // This dramatically increases cache hit rate for category browsing
+    let cacheKey = "";
+    let useCache = true;
+    
+    if (search) {
+      // Search results are too volatile to cache — just hit DB
+      useCache = false;
+      cacheKey = "";
+    } else if (category) {
+      // Category requests can share a cache key grouped by category+sort+page
+      cacheKey = `category:${category}:${sortBy}:${page}:${limit}`;
+    } else {
+      // All products
+      cacheKey = `all:${sortBy}:${page}:${limit}`;
+    }
 
-    // Public traffic still benefits from Redis cache.
+    if (!useCache) {
+      // Search hit — skip cache, go straight to DB
+      const dbStart = Date.now();
+      const result = await queryProducts();
+      timings.dbMs = Date.now() - dbStart;
+      const totalMs = Date.now() - startTime;
+      logger.debug("Products GET (search, no cache)", {
+        page,
+        limit,
+        sortBy,
+        search,
+        timings,
+        totalMs,
+      });
+      return NextResponse.json(result);
+    }
+
+    // Category or all products — try cache first
+    const cacheStart = Date.now();
     const cachedResult = await getOrSet(
       "products",
       cacheKey,
       queryProducts,
       CACHE_TTL.PRODUCTS
     );
+    timings.cacheMs = Date.now() - cacheStart;
 
-    return NextResponse.json(cachedResult);
+    // Log timing breakdown for slow requests
+    const totalMs = Date.now() - startTime;
+    if (totalMs > 5000) {
+      logger.warn("Slow products GET request", {
+        page,
+        limit,
+        sortBy,
+        category,
+        timings,
+        totalMs,
+      });
+    } else {
+      logger.debug("Products GET", {
+        page,
+        limit,
+        sortBy,
+        category,
+        timings,
+        totalMs,
+      });
+    }
+
+    return NextResponse.json(cachedResult, {
+      headers: {
+        "X-Response-Time": `${totalMs}ms`,
+      },
+    });
   } catch (error) {
     return handleUnexpectedError(error, "GET /api/products");
   }
