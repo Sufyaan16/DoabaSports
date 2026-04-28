@@ -12,6 +12,11 @@ const CACHE_TTL = {
   DEFAULT: 60 * 5, // 5 minutes fallback
 } as const;
 
+// Cache safeguards to prevent long hangs when Redis is unavailable
+const CACHE_TIMEOUT_MS = Number(process.env.CACHE_TIMEOUT_MS || "300");
+const CACHE_COOLDOWN_MS = Number(process.env.CACHE_COOLDOWN_MS || "60000");
+let cacheDisabledUntil = 0;
+
 /**
  * Map namespace strings to their appropriate TTL
  */
@@ -31,6 +36,23 @@ const NAMESPACE_TTL: Record<string, number> = {
  */
 let redis: Redis | null = null;
 
+function disableCacheTemporarily(reason: string, error?: unknown) {
+  cacheDisabledUntil = Date.now() + CACHE_COOLDOWN_MS;
+  logger.warn("Cache temporarily disabled", {
+    reason,
+    cooldownMs: CACHE_COOLDOWN_MS,
+    error,
+  });
+}
+
+async function withCacheTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    setTimeout(() => reject(new Error(`Cache ${label} timeout`)), CACHE_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeoutPromise]);
+}
+
 function initRedis() {
   if (!redis && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
     try {
@@ -41,6 +63,7 @@ function initRedis() {
       logger.info("Redis cache initialized");
     } catch (error) {
       logger.error("Failed to initialize Redis cache", { error });
+      disableCacheTemporarily("init-failed", error);
     }
   }
 }
@@ -52,6 +75,8 @@ initRedis();
  * Check if caching is enabled
  */
 function isCacheEnabled(): boolean {
+  if (process.env.CACHE_DISABLED === "1") return false;
+  if (Date.now() < cacheDisabledUntil) return false;
   return redis !== null && process.env.NODE_ENV !== "test";
 }
 
@@ -78,7 +103,7 @@ export async function getFromCache<T>(
 
   try {
     const cacheKey = getCacheKey(namespace, key);
-    const cached = await redis!.get(cacheKey);
+    const cached = await withCacheTimeout(redis!.get(cacheKey), "read");
     
     if (cached) {
       logger.debug("Cache HIT", { key: cacheKey });
@@ -89,6 +114,7 @@ export async function getFromCache<T>(
     return null;
   } catch (error) {
     logger.error("Cache read error", { error });
+    disableCacheTemporarily("read-error", error);
     return null; // Fail gracefully
   }
 }
@@ -114,10 +140,11 @@ export async function setCache<T>(
     const cacheKey = getCacheKey(namespace, key);
     const cacheTTL = ttl || NAMESPACE_TTL[namespace] || CACHE_TTL.DEFAULT;
     
-    await redis!.set(cacheKey, value, { ex: cacheTTL });
+    await withCacheTimeout(redis!.set(cacheKey, value, { ex: cacheTTL }), "write");
     logger.debug("Cache SET", { key: cacheKey, ttl: cacheTTL });
   } catch (error) {
     logger.error("Cache write error", { error });
+    disableCacheTemporarily("write-error", error);
     // Fail gracefully - don't break the request
   }
 }
@@ -137,10 +164,11 @@ export async function deleteFromCache(
 
   try {
     const cacheKey = getCacheKey(namespace, key);
-    await redis!.del(cacheKey);
+    await withCacheTimeout(redis!.del(cacheKey), "delete");
     logger.debug("Cache DELETE", { key: cacheKey });
   } catch (error) {
     logger.error("Cache delete error", { error });
+    disableCacheTemporarily("delete-error", error);
   }
 }
 
@@ -160,15 +188,18 @@ export async function invalidateCachePattern(pattern: string): Promise<void> {
 
     do {
       // SCAN is non-blocking unlike KEYS which can lock Redis
-      const result: [string, string[]] = await redis!.scan(scanCursor, {
+      const result: [string, string[]] = await withCacheTimeout(
+        redis!.scan(scanCursor, {
         match: pattern,
         count: 100,
-      });
+        }),
+        "scan"
+      );
       scanCursor = parseInt(result[0], 10);
       const keys = result[1];
 
       if (keys.length > 0) {
-        await redis!.del(...keys);
+        await withCacheTimeout(redis!.del(...keys), "delete-batch");
         totalDeleted += keys.length;
       }
     } while (scanCursor !== 0);
@@ -178,6 +209,7 @@ export async function invalidateCachePattern(pattern: string): Promise<void> {
     }
   } catch (error) {
     logger.error("Cache invalidation error", { error });
+    disableCacheTemporarily("invalidate-error", error);
   }
 }
 
